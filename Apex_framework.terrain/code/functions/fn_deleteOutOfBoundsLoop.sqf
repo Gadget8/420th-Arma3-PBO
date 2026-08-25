@@ -13,9 +13,9 @@ private _minZ = -1000;
 private _maxZ = 50000;
 
 while {true} do {
-    sleep (25 + random 10);
+    sleep (60 + random 10);
     // ~0.7287ms for 945 entities
-    private _props = entities "";
+    private _props = allMissionObjects "";
     diag_log text format ["%1: scanning %2 props", _fnc_scriptName, count _props];
 
     _props = _props apply {[_x, getPosWorld _x]} select {

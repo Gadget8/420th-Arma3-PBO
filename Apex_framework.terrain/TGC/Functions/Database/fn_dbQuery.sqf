@@ -27,10 +27,75 @@ Returns:
 	Whatever response was given, or an empty string if `_wait` is false.
 ___________________________________________________________________________/*/
 // https://github.com/SteezCram/extDB3/blob/master/Optional/legacy/original_source_code/sqf_examples/sqf/fn_async_custom.sqf
+// CfgRemoteExec is allowlist-only and does not expose this function. Do not
+// reject isRemoteExecuted here: Arma carries that context into server-owned
+// workers spawned by validated RemoteExec handlers (for example, the Donator
+// Skins menu), causing legitimate queries to return nil without reaching
+// extDB3.
+if (!isServer) exitWith {};
 params ["_function", ["_args", []], ["_wait", true]];
 if (_wait && {!canSuspend}) then {
 	throw "fn_dbQuery.sqf: Waiting database queries require a scheduled environment";
 };
+
+// Keep a damaged database from accumulating an unlimited number of scheduled
+// pollers. This bounds both active extension users and scripts waiting for a
+// slot. Unscheduled fire-and-forget callers are rejected when all slots are in
+// use because they cannot safely wait here.
+private _maxConcurrentQueries = 4;
+private _maxQueuedQueries = 64;
+private _queueWaitTimeout = 10;
+private _breakerFailureLimit = 5;
+private _breakerWindow = 30;
+private _breakerCooldown = 60;
+
+private _now = diag_tickTime;
+private _breaker = missionNamespace getVariable ["TGC_dbCircuitBreaker", [_now, 0, 0]];
+_breaker params ["_breakerWindowStarted", "_breakerFailures", "_breakerOpenUntil"];
+if (_breakerOpenUntil > _now) then {
+	throw format ["fn_dbQuery.sqf: Database circuit breaker open for %1 more seconds", ceil (_breakerOpenUntil - _now)];
+};
+if ((_now - _breakerWindowStarted) > _breakerWindow) then {
+	_breakerWindowStarted = _now;
+	_breakerFailures = 0;
+	missionNamespace setVariable ["TGC_dbCircuitBreaker", [_breakerWindowStarted, _breakerFailures, 0], false];
+};
+
+private _slotAcquired = false;
+private _registeredAsQueued = false;
+private _queueDeadline = _now + _queueWaitTimeout;
+while {!_slotAcquired} do {
+	private _activeQueries = missionNamespace getVariable ["TGC_dbActiveQueries", 0];
+	if (_activeQueries < _maxConcurrentQueries) then {
+		missionNamespace setVariable ["TGC_dbActiveQueries", _activeQueries + 1, false];
+		_slotAcquired = true;
+		if (_registeredAsQueued) then {
+			private _queuedQueries = missionNamespace getVariable ["TGC_dbQueuedQueries", 1];
+			missionNamespace setVariable ["TGC_dbQueuedQueries", (_queuedQueries - 1) max 0, false];
+		};
+	} else {
+		if (!_registeredAsQueued) then {
+			private _queuedQueries = missionNamespace getVariable ["TGC_dbQueuedQueries", 0];
+			if (_queuedQueries >= _maxQueuedQueries) then {
+				throw format ["fn_dbQuery.sqf: Database queue is full (%1 waiting)", _queuedQueries];
+			};
+			missionNamespace setVariable ["TGC_dbQueuedQueries", _queuedQueries + 1, false];
+			_registeredAsQueued = true;
+		};
+		if (!canSuspend || {diag_tickTime >= _queueDeadline}) then {
+			private _queuedQueries = missionNamespace getVariable ["TGC_dbQueuedQueries", 1];
+			missionNamespace setVariable ["TGC_dbQueuedQueries", (_queuedQueries - 1) max 0, false];
+			throw "fn_dbQuery.sqf: Timed out waiting for a database concurrency slot";
+		};
+		uiSleep 0.05;
+	};
+};
+
+private _executionStarted = diag_tickTime;
+private _dbResult = "";
+private _dbException = "";
+try {
+	_dbResult = call {
 
 // extDB3 calls cannot be interrupted while the extension is executing, but
 // response polling still needs a hard ceiling so a lost key cannot leave a
@@ -39,6 +104,7 @@ private _queryTimeout = 30;
 private _maxResponsePolls = 300;
 private _responsePollInterval = 0.1;
 private _maxMultipartChunks = 2048;
+private _maxMultipartBytes = 2 * 1024 * 1024;
 private _multipartPollInterval = 0.01;
 
 private _mode = ["1", "2"] select _wait;
@@ -95,10 +161,6 @@ while {!_complete} do {
 		throw format ["fn_dbQuery.sqf: No response received for query %1", _query];
 	};
 
-	if (QS_missionConfig_dbQueryDebug) then {
-		diag_log format ["fn_dbQuery.sqf: Query %1 received ""%2""", _query, _messageRaw];
-	};
-
 	private _message = [];
 	try {
 		_message = parseSimpleArray _messageRaw;
@@ -116,6 +178,9 @@ while {!_complete} do {
 		case 1: {
 			if (count _message < 2) then {
 				throw format ["fn_dbQuery.sqf: Successful response contained no data for query %1: %2", _query, _messageRaw];
+			};
+			if (QS_missionConfig_dbQueryDebug) then {
+				diag_log format ["fn_dbQuery.sqf: Query %1 completed after %2 poll(s)", _query, _responsePolls];
 			};
 			_result = _message # 1;
 			_complete = true;
@@ -142,6 +207,9 @@ while {!_complete} do {
 					if (_multipartChunks >= _maxMultipartChunks) then {
 						throw format ["fn_dbQuery.sqf: Exceeded %1 multipart chunks for query %2", _maxMultipartChunks, _query];
 					};
+					if (((count _multipart) + (count _pipe)) > _maxMultipartBytes) then {
+						throw format ["fn_dbQuery.sqf: Multipart response exceeded %1 bytes for query %2", _maxMultipartBytes, _query];
+					};
 					_multipart = _multipart + _pipe;
 					_multipartChunks = _multipartChunks + 1;
 					uiSleep _multipartPollInterval;
@@ -164,8 +232,8 @@ while {!_complete} do {
 			_result = _multipartMessage # 1;
 			if (QS_missionConfig_dbQueryDebug) then {
 				diag_log format [
-					"fn_dbQuery.sqf: Query %1 received multipart ""%2""",
-					_query, str _result
+					"fn_dbQuery.sqf: Query %1 completed in %2 multipart chunk(s)",
+					_query, _multipartChunks
 				];
 			};
 			_complete = true;
@@ -175,4 +243,34 @@ while {!_complete} do {
 		};
 	};
 };
-_result;
+	_result
+	};
+} catch {
+	_dbException = _exception;
+};
+
+private _activeQueries = missionNamespace getVariable ["TGC_dbActiveQueries", 1];
+missionNamespace setVariable ["TGC_dbActiveQueries", (_activeQueries - 1) max 0, false];
+
+if (_dbException isNotEqualTo "") then {
+	_now = diag_tickTime;
+	_breaker = missionNamespace getVariable ["TGC_dbCircuitBreaker", [_now, 0, 0]];
+	_breaker params ["_breakerWindowStarted", "_breakerFailures", "_breakerOpenUntil"];
+	if ((_now - _breakerWindowStarted) > _breakerWindow) then {
+		_breakerWindowStarted = _now;
+		_breakerFailures = 0;
+	};
+	_breakerFailures = _breakerFailures + 1;
+	if (_breakerFailures >= _breakerFailureLimit) then {
+		_breakerOpenUntil = _now + _breakerCooldown;
+		diag_log format ["fn_dbQuery.sqf: Opening database circuit breaker for %1 seconds after %2 failures", _breakerCooldown, _breakerFailures];
+	};
+	missionNamespace setVariable ["TGC_dbCircuitBreaker", [_breakerWindowStarted, _breakerFailures, _breakerOpenUntil], false];
+	throw _dbException;
+};
+
+missionNamespace setVariable ["TGC_dbCircuitBreaker", [diag_tickTime, 0, 0], false];
+if (QS_missionConfig_dbQueryDebug) then {
+	diag_log format ["fn_dbQuery.sqf: Database operation finished in %1 seconds", (diag_tickTime - _executionStarted) toFixed 3];
+};
+_dbResult;

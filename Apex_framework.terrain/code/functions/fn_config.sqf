@@ -13,6 +13,8 @@ Description:
 	Configure Server
 ____________________________________________________/*/
 
+if (isRemoteExecuted) exitWith {};
+
 missionNamespace setVariable ['QS_system_devBuild_text',(format ['Apex Framework %1 %3 (%2)',getMissionConfigValue ['missionProductVersion',''],getMissionConfigValue ['missionProductStatus',''],getMissionConfigValue ['missionProductDate','']]),TRUE];
 diag_log str QS_system_devBuild_text;
 private [
@@ -106,7 +108,8 @@ if (isNil {uiNamespace getVariable 'QS_fnc_serverCommandPassword'}) exitWith {
 
 private _extDB3_version = "extDB3" callExtension "9:VERSION";
 private _has_extDB3 = _extDB3_version isNotEqualTo "";
-missionNamespace setVariable ['QS_server_isUsingDB',_has_extDB3,FALSE];
+missionNamespace setVariable ['QS_server_isUsingDB',FALSE,FALSE];
+missionNamespace setVariable ['TGC_db_ready',FALSE,FALSE];
 
 /*/ EXTDB3 - Database - Server Setup component would go here /*/
 private _extDB3_ready = false;
@@ -115,13 +118,28 @@ if (_has_extDB3) then {
 	private "_ret";
 
 	if ("extDB3" callExtension "9:LOCK_STATUS" isEqualTo "[1]") exitWith {
-		// A mission reload probably occurred, verify that our protocol exists
-		_ret = parseSimpleArray ("extDB3" callExtension "0:ina:getProtocolVersion");
-		if (_ret # 0 isNotEqualTo 0) then {
-			diag_log "Database is locked but appears to be configured, finishing setup";
-			_extDB3_ready = true;
-		} else {
-			diag_log "Database is locked and unable to be configured";
+		// A mission reload probably occurred. Validate the existing protocol through
+		// async type 2 rather than blocking Arma on synchronous type 0 SQL.
+		try {
+			private _rows = ["getProtocolVersion"] call TGC_fnc_dbQuery;
+			private _protocolVersion = 0;
+			if (_rows isEqualType [] && {count _rows > 0}) then {
+				private _row = _rows param [0, []];
+				if (_row isEqualType []) then {
+					_protocolVersion = _row param [0, 0];
+					if (_protocolVersion isEqualType "") then {
+						_protocolVersion = parseNumber _protocolVersion;
+					};
+				};
+			};
+			if (_protocolVersion isEqualTo 2) then {
+				diag_log "Database is locked and the INA protocol is available, finishing setup";
+				_extDB3_ready = true;
+			} else {
+				diag_log format ["Database is locked but returned an unexpected INA protocol version: %1", _rows];
+			};
+		} catch {
+			diag_log format ["Database is locked and INA protocol validation failed: %1", _exception];
 		};
 	};
 
@@ -144,6 +162,9 @@ if (_has_extDB3) then {
 
 	_extDB3_ready = true;
 };
+
+missionNamespace setVariable ['QS_server_isUsingDB',_extDB3_ready,FALSE];
+missionNamespace setVariable ['TGC_db_ready',_extDB3_ready,FALSE];
 
 if (_extDB3_ready && QS_missionConfig_dbWhitelistEnabled) then {
 	diag_log "Database whitelisting enabled";

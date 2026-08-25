@@ -2,29 +2,80 @@
 File: fn_serverPMC.sqf
 Description: Server-authoritative persistent Private Military Company service.
 */
-if (!isServer || {!isRemoteExecuted}) exitWith {};
-params [['_mode',''],['_data',[]]];
+if (!isServer) exitWith {};
 
-private _requestOwner = remoteExecutedOwner;
-private _unitIndex = allPlayers findIf {(owner _x) isEqualTo _requestOwner};
-if (_unitIndex isEqualTo -1) exitWith {};
-private _unit = allPlayers # _unitIndex;
-private _uid = getPlayerUID _unit;
-if ((count _uid) isNotEqualTo 17) exitWith {};
+private _isRemoteRequest = isRemoteExecuted;
+private _mode = '';
+private _data = [];
+private _unit = objNull;
+private _uid = '';
+private _requestOwner = -1;
+
+if (_isRemoteRequest) then {
+	_mode = _this param [0,''];
+	_data = _this param [1,[]];
+	_requestOwner = remoteExecutedOwner;
+	private _unitIndex = allPlayers findIf {(owner _x) isEqualTo _requestOwner};
+	if (_unitIndex isNotEqualTo -1) then {
+		_unit = allPlayers # _unitIndex;
+		_uid = getPlayerUID _unit;
+	};
+} else {
+	// Requests delivered by the one-shot server event handler below no longer
+	// carry RemoteExec context and may safely enter the database layer.
+	_mode = _this param [0,''];
+	_data = _this param [1,[]];
+	_unit = _this param [2,objNull,[objNull]];
+	_uid = _this param [3,'',['']];
+	_requestOwner = _this param [4,-1,[0]];
+};
+
+if (
+	(isNull _unit) ||
+	{!isPlayer _unit} ||
+	{(owner _unit) isNotEqualTo _requestOwner} ||
+	{(getPlayerUID _unit) isNotEqualTo _uid} ||
+	{(count _uid) isNotEqualTo 17}
+) exitWith {};
 
 private _allowedModes = ['SYNC','CHECK_CREATE','CREATE','INVITE','RESPOND','LEAVE','RENAME','SAVE_RANK','EJECT','CHANGE_RANK','GET_PURCHASED_SKINS','GET_PMC_SKINS','ADD_SKIN','REMOVE_SKIN','TRANSFER','DISBAND'];
 if !(_mode in _allowedModes) exitWith {};
 if ((str _data) isEqualTo '' || {(count (str _data)) > 4096}) exitWith {};
-private _now = diag_tickTime;
-private _limits = serverNamespace getVariable ['QS_PMC_requestLimits',createHashMap];
-if ((count _limits) > 256) then {_limits = createHashMap};
-private _requestState = _limits getOrDefault [_requestOwner,[_now,0]];
-_requestState params ['_windowStart','_requestCount'];
-if ((_now - _windowStart) > 2) then {_windowStart = _now; _requestCount = 0};
-_requestCount = _requestCount + 1;
-_limits set [_requestOwner,[_windowStart,_requestCount]];
-serverNamespace setVariable ['QS_PMC_requestLimits',_limits];
-if (_requestCount > 10) exitWith {};
+if (_isRemoteRequest) exitWith {
+	private _now = diag_tickTime;
+	private _limits = serverNamespace getVariable ['QS_PMC_requestLimits',createHashMap];
+	if ((count _limits) > 256) then {_limits = createHashMap};
+	private _requestState = _limits getOrDefault [_requestOwner,[_now,0]];
+	_requestState params ['_windowStart','_requestCount'];
+	if ((_now - _windowStart) > 2) then {_windowStart = _now; _requestCount = 0};
+	_requestCount = _requestCount + 1;
+	_limits set [_requestOwner,[_windowStart,_requestCount]];
+	serverNamespace setVariable ['QS_PMC_requestLimits',_limits];
+	if (_requestCount > 10) exitWith {};
+
+	private _queue = missionNamespace getVariable ['QS_PMC_serverRequestQueue',[]];
+	if ((count _queue) >= 64) exitWith {};
+	_queue pushBack [_mode,_data,_unit,_uid,_requestOwner];
+	missionNamespace setVariable ['QS_PMC_serverRequestQueue',_queue,FALSE];
+
+	if !(missionNamespace getVariable ['QS_PMC_serverDispatchPending',FALSE]) then {
+		missionNamespace setVariable ['QS_PMC_serverDispatchPending',TRUE,FALSE];
+		private _handlerId = addMissionEventHandler ['EachFrame',{
+			private _handlerId = missionNamespace getVariable ['QS_PMC_serverDispatchHandler',-1];
+			if (_handlerId isNotEqualTo -1) then {
+				removeMissionEventHandler ['EachFrame',_handlerId];
+			};
+			missionNamespace setVariable ['QS_PMC_serverDispatchHandler',-1,FALSE];
+			missionNamespace setVariable ['QS_PMC_serverDispatchPending',FALSE,FALSE];
+			private _queue = missionNamespace getVariable ['QS_PMC_serverRequestQueue',[]];
+			missionNamespace setVariable ['QS_PMC_serverRequestQueue',[],FALSE];
+			{
+				_x call QS_fnc_serverPMC;
+			} forEach _queue;
+		}];
+		missionNamespace setVariable ['QS_PMC_serverDispatchHandler',_handlerId,FALSE];
+	};
+};
 
 [_mode,_data,_unit,_uid,_requestOwner] spawn {
 	params ['_mode','_data','_unit','_uid','_requestOwner'];
