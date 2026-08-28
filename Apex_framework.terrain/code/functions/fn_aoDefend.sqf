@@ -148,12 +148,12 @@ _uavType = '';
 _uav = objNull;
 _uavFlyInHeight = 600 + (random 1400);
 _QS_infantry = TRUE;
-_infantryInitialSpawnDelay = time + 0;
+_infantryInitialSpawnDelay = time + 60;
 
-private _infantryLimit_0 = 50;
-private _infantryLimit_1 = 60;
-private _infantryLimit_2 = 70;
-private _infantryLimit_3 = 80;
+private _infantryLimit_0 = 30;
+private _infantryLimit_1 = 40;
+private _infantryLimit_2 = 50;
+private _infantryLimit_3 = 75;
 private _infantryLimit_4 = 100;
 private _infantryLimit_5 = 125;
 private _infantryLimit_6 = 150;
@@ -171,7 +171,7 @@ _infantrySpawnDelay = time + 5;
 
 _infantrySpawnDistanceFixed = 200; //legacy parameter retained; active spawn bands are defined in the infantry spawn block
 _infantrySpawnDistanceRandom = 50; //legacy parameter retained; active outer band reaches 200m
-_infantrySpawnDistanceFromPlayer = 50; //player exclusion bubble used by the infantry spawn block
+_infantrySpawnDistanceFromPlayer = 30; //player exclusion bubble used by the infantry spawn block
 
 if (worldName isEqualTo 'Tanoa') then {
 	_infantrySpawnDistanceFixed = 200;
@@ -494,7 +494,7 @@ for '_x' from 0 to 1 step 0 do {
 			_uavCheckDelay = time + 5;
 		};
 	};
-	if (_tickTimeNow > _infantryCheckDelay) then {
+	if ((_timeNow > _infantryInitialSpawnDelay) && {(_tickTimeNow > _infantryCheckDelay)}) then {
 		if (_allPlayersCount > 0) then {_infantryMaxSpawned = _infantryLimit_0;};
 		if (_allPlayersCount > 10) then {_infantryMaxSpawned = _infantryLimit_1;};
 		if (_allPlayersCount > 20) then {_infantryMaxSpawned = _infantryLimit_2;};
@@ -509,13 +509,10 @@ for '_x' from 0 to 1 step 0 do {
 		if ((count _infantryArray) < _infantryMaxSpawned) then {
 			_index = 0;
 			for '_x' from 0 to 49 step 1 do {
-				_spawnPos = ([
-					[_centerPos,75,100,5,0,0.5,0],
-					[_centerPos,100,200,5,0,0.5,0]
-				] select ((random 1) > 0.666)) call _fn_findSafePos;
+				_spawnPos = [_centerPos,_infantrySpawnDistanceFixed,_infantrySpawnDistanceFixed + _infantrySpawnDistanceRandom,5,0,0.5,0] call _fn_findSafePos;
 				if (
 					(_spawnPos isNotEqualTo []) &&
-					{((_allPlayers inAreaArray [_spawnPos,50,50,0,FALSE]) isEqualTo [])} &&
+					{((_allPlayers inAreaArray [_spawnPos,_infantrySpawnDistanceFromPlayer,_infantrySpawnDistanceFromPlayer,0,FALSE]) isEqualTo [])} &&
 					{((_spawnPos distance2D _centerPos) < 1001)} &&
 					{(_spawnPos call _fn_blacklist)} &&
 					{(!([_spawnPos,_centerPos,25] call _fn_waterIntersect))}

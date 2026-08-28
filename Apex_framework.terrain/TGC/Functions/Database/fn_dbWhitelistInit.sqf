@@ -60,8 +60,31 @@ diag_log "TGC_fnc_dbWhitelistInit: server connect handlers initialized";
 TGC_fnc_dbWhitelistInit_refreshPlayer = {
     params [["_ownerId", -1], ["_uid", ""], ["_name", ""]];
     if (missionNamespace getVariable ["QS_missionConfig_dbWhitelistEnabled", false] isNotEqualTo true) exitWith {};
+    if (missionNamespace getVariable ["TGC_db_ready", false] isNotEqualTo true) exitWith {};
     if (_uid isEqualTo "") exitWith {};
     if (isNil "QS_whitelist_data") then {QS_whitelist_data = createHashMap};
+
+    // State per UID: [query in flight, cache expiry, cached roles, waiting owners].
+    // Both PlayerConnected and client-ready retries enter here, so they share a
+    // single query and all receive the same result when it finishes.
+    private _states = missionNamespace getVariable ["TGC_dbWhitelistQueryStates", createHashMap];
+    missionNamespace setVariable ["TGC_dbWhitelistQueryStates", _states, false];
+    private _now = diag_tickTime;
+    private _state = _states getOrDefault [_uid, [false, 0, [], []]];
+    _state params ["_inFlight", "_cacheExpiry", "_cachedRoles", "_waitingOwners"];
+    if (_ownerId > 1) then {_waitingOwners pushBackUnique _ownerId};
+
+    if (_cacheExpiry > _now) exitWith {
+        {
+            TGC_dbWhitelistClientData = [_uid, _cachedRoles];
+            _x publicVariableClient "TGC_dbWhitelistClientData";
+        } forEach _waitingOwners;
+        _states set [_uid, [false, _cacheExpiry, _cachedRoles, []]];
+    };
+    if (_inFlight) exitWith {
+        _states set [_uid, [true, _cacheExpiry, _cachedRoles, _waitingOwners]];
+    };
+    _states set [_uid, [true, _cacheExpiry, _cachedRoles, _waitingOwners]];
 
     private _users = [];
     private _querySucceeded = true;
@@ -72,46 +95,58 @@ TGC_fnc_dbWhitelistInit_refreshPlayer = {
         diag_log format ["TGC_fnc_dbWhitelistInit: whitelist query failed for %1 (%2): %3", _name, _uid, _exception];
     };
 
-    if (!_querySucceeded) exitWith {};
-
     private _clientRoles = [];
-    {
-        _x params ["", "_role_s3", "_role_cas", "_role_s1", "_role_opfor", "_role_all", "_role_admin", "_role_moderator", "_role_trusted", "_role_media", "_role_curator", "_role_developer", ["_role_donator", false]];
-        if (_role_s3       ) then {_clientRoles pushBack "S3"};
-        if (_role_cas      ) then {_clientRoles pushBack "CAS"};
-        if (_role_s1       ) then {_clientRoles pushBack "S1"};
-        if (_role_opfor    ) then {_clientRoles pushBack "OPFOR"};
-        if (_role_all      ) then {_clientRoles pushBack "ALL"};
-        if (_role_admin    ) then {_clientRoles pushBack "ADMIN"};
-        if (_role_moderator) then {_clientRoles pushBack "MODERATOR"};
-        if (_role_trusted  ) then {_clientRoles pushBack "TRUSTED"};
-        if (_role_media    ) then {_clientRoles pushBack "MEDIA"};
-        if (_role_curator  ) then {_clientRoles pushBack "CURATOR"};
-        if (_role_developer) then {_clientRoles pushBack "DEVELOPER"};
-        if (_role_donator  ) then {_clientRoles pushBack "DONATOR"};
-    } forEach _users;
+    if (_querySucceeded) then {
+        {
+            _x params ["", "_role_s3", "_role_cas", "_role_s1", "_role_opfor", "_role_all", "_role_admin", "_role_moderator", "_role_trusted", "_role_media", "_role_curator", "_role_developer", ["_role_donator", false]];
+            if (_role_s3       ) then {_clientRoles pushBack "S3"};
+            if (_role_cas      ) then {_clientRoles pushBack "CAS"};
+            if (_role_s1       ) then {_clientRoles pushBack "S1"};
+            if (_role_opfor    ) then {_clientRoles pushBack "OPFOR"};
+            if (_role_all      ) then {_clientRoles pushBack "ALL"};
+            if (_role_admin    ) then {_clientRoles pushBack "ADMIN"};
+            if (_role_moderator) then {_clientRoles pushBack "MODERATOR"};
+            if (_role_trusted  ) then {_clientRoles pushBack "TRUSTED"};
+            if (_role_media    ) then {_clientRoles pushBack "MEDIA"};
+            if (_role_curator  ) then {_clientRoles pushBack "CURATOR"};
+            if (_role_developer) then {_clientRoles pushBack "DEVELOPER"};
+            if (_role_donator  ) then {_clientRoles pushBack "DONATOR"};
+        } forEach _users;
+    } else {
+        // Preserve the last known server-side roles during a transient outage.
+        {
+            private _roleMap = QS_whitelist_data getOrDefaultCall [_x, {createHashMap}, true];
+            if (!isNil {_roleMap get _uid}) then {_clientRoles pushBack _x};
+        } forEach keys QS_whitelist_data;
+    };
 
     private _removed = 0;
-    {
-        private _roleMap = QS_whitelist_data getOrDefaultCall [_x, {createHashMap}, true];
-        private _old = _roleMap deleteAt _uid;
-        if (!isNil "_old") then {_removed = _removed + 1};
-    } forEach keys QS_whitelist_data;
+    if (_querySucceeded) then {
+        {
+            private _roleMap = QS_whitelist_data getOrDefaultCall [_x, {createHashMap}, true];
+            private _old = _roleMap deleteAt _uid;
+            if (!isNil "_old") then {_removed = _removed + 1};
+        } forEach keys QS_whitelist_data;
 
-    {
-        QS_whitelist_data
-            getOrDefaultCall [_x, {createHashMap}, true]
-            set [_uid, 1];
-    } forEach _clientRoles;
-
-    diag_log format ["TGC_fnc_dbWhitelistInit: refreshed %1 (%2), roles %3, removed %4 stale entries", _name, _uid, _clientRoles, _removed];
-    publicVariable "QS_whitelist_data";
-
-    if (_ownerId > 0) then {
-        TGC_dbWhitelistClientData = [_uid, _clientRoles];
-        _ownerId publicVariableClient "TGC_dbWhitelistClientData";
-        diag_log format ["TGC_fnc_dbWhitelistInit: sent client whitelist for %1 to owner %2", _uid, _ownerId];
+        {
+            QS_whitelist_data
+                getOrDefaultCall [_x, {createHashMap}, true]
+                set [_uid, 1];
+        } forEach _clientRoles;
+        diag_log format ["TGC_fnc_dbWhitelistInit: refreshed %1 (%2), roles %3, removed %4 stale entries", _name, _uid, _clientRoles, _removed];
     };
+
+    // Re-read state because other retry handlers may have added owners while
+    // the scheduled query was waiting.
+    _state = _states getOrDefault [_uid, [true, 0, [], []]];
+    _state params ["", "", "", "_waitingOwners"];
+    private _cacheDuration = [15, 60] select _querySucceeded;
+    _cacheExpiry = diag_tickTime + _cacheDuration;
+    _states set [_uid, [false, _cacheExpiry, _clientRoles, []]];
+    {
+        TGC_dbWhitelistClientData = [_uid, _clientRoles];
+        _x publicVariableClient "TGC_dbWhitelistClientData";
+    } forEach _waitingOwners;
 };
 
 // Early server-side refresh for systems initialized before the client is ready.
@@ -125,6 +160,23 @@ addMissionEventHandler ["PlayerConnected", {
 "TGC_dbWhitelistRequest" addPublicVariableEventHandler {
     params ["", "_request"];
     _request params [["_ownerId", -1], ["_uid", ""], ["_name", ""], ["_requestId", -1]];
+
+    // Bound event-handler work before scanning all players. Per-UID throttling
+    // prevents replay storms; the global ceiling limits tuple cycling attacks.
+    private _now = diag_tickTime;
+    private _rateWindow = missionNamespace getVariable ["TGC_dbWhitelistRequestRateWindow", [_now, 0]];
+    _rateWindow params ["_windowStarted", "_windowRequests"];
+    if ((_now - _windowStarted) >= 1) then {
+        _windowStarted = _now;
+        _windowRequests = 0;
+    };
+    if (_windowRequests >= 20) exitWith {};
+    missionNamespace setVariable ["TGC_dbWhitelistRequestRateWindow", [_windowStarted, _windowRequests + 1], false];
+
+    private _uidRateLimits = missionNamespace getVariable ["TGC_dbWhitelistUidRateLimits", createHashMap];
+    missionNamespace setVariable ["TGC_dbWhitelistUidRateLimits", _uidRateLimits, false];
+    if ((_uidRateLimits getOrDefault [_uid, 0]) > _now) exitWith {};
+    _uidRateLimits set [_uid, _now + 1];
 
     private _matchingPlayer = allPlayers findIf {
         (owner _x isEqualTo _ownerId) && {(getPlayerUID _x) isEqualTo _uid}
@@ -157,7 +209,7 @@ addMissionEventHandler ["PlayerDisconnected", {
 
     private _removed = 0;
     {
-        private _roles = QS_whitelist_data getOrDefaultCall [_role, {createHashMap}, true];
+        private _roles = QS_whitelist_data getOrDefaultCall [_x, {createHashMap}, true];
         private _old = _roles deleteAt _uid;
         if (!isNil "_old") then {_removed = _removed + 1};
     } forEach keys QS_whitelist_data;
