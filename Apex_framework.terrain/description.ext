@@ -786,6 +786,7 @@ class CfgFunctions {
             class getChannelMask {};
             class refreshChannels {};
             class refreshStaffChannelAccess {};
+            class serverSetChannelMasks {};
             class setChannelMasks {};
         };
         class Curators {

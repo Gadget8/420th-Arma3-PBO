@@ -61,8 +61,7 @@ with uiNamespace do {
             _masks pushBack [_id, [cbChecked _text, cbChecked _von]];
         } forEach call TGC_fnc_getChannelMasks;
 
-        private _jipID = "TGC_fnc_setChannelMasks";
-        [_masks] remoteExec ["TGC_fnc_setChannelMasks", 0, _jipID];
+        [_masks] remoteExec ["TGC_fnc_serverSetChannelMasks", 2, false];
 
         // Since remote execution takes time to broadcast, even to our own client,
         // let's call the function so we see our changes immediately.

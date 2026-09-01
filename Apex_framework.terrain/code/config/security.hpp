@@ -238,7 +238,8 @@ class CfgRemoteExec {
 		class TGC_fnc_manageWeather {allowedTargets = 2;};
 		class TGC_fnc_manageSideMissions {allowedTargets = 2;};
 		class TGC_fnc_lockDroneByUID {};
-		class TGC_fnc_setChannelMasks {};
+		class TGC_fnc_serverSetChannelMasks {allowedTargets = 2; jip = 0;};
+		class TGC_fnc_setChannelMasks {allowedTargets = 1; jip = 0;};
 		class TGC_fnc_setFriendlyName {};
 		class genix_fnc_menuloadoutreceive {};
         class hatg_fnc_cooldown {allowedTargets = 0;};
