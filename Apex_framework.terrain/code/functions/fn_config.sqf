@@ -624,6 +624,7 @@ private _weaponsList = configFile >> 'CfgWeapons';
 	['QS_classic_AI_triggerInit',FALSE,FALSE],
 	['QS_classic_AI_active',FALSE,FALSE],
 	['QS_classic_AI_enemy_0',[],FALSE],
+	['QS_normalAO_deferredAIObjects',[],FALSE],
 	['QS_classic_subObjectives',[],FALSE],
 	['QS_classic_subObjectiveData',[],FALSE],
 	['QS_mission_tasks',[],TRUE],

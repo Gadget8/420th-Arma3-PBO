@@ -1811,10 +1811,11 @@ for '_x' from 0 to 1 step 0 do {
 							if (_x isEqualType objNull) then {
 								if (!isNull _x) then {
 									if ((_x isKindOf 'Air') || {(_x isKindOf 'LandVehicle')} || {(_x isKindOf 'Ship')}) then {
+										(missionNamespace getVariable ['QS_normalAO_deferredAIObjects',[]]) pushBackUnique _x;
 										_x setDamage [1,_false];
 									} else {
 										if ((_x isKindOf 'Building') || {(_x isKindOf 'House')}) then {
-											0 = (missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'NOW_DISCREET',0];
+											(missionNamespace getVariable ['QS_normalAO_deferredAIObjects',[]]) pushBackUnique _x;
 										} else {
 											missionNamespace setVariable ['QS_analytics_entities_deleted',((missionNamespace getVariable 'QS_analytics_entities_deleted') + 1),_false];
 											uiSleep 0.05;

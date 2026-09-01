@@ -1494,13 +1494,6 @@ for '_x' from 0 to 1 step 0 do {
 								{((missionNamespace getVariable 'QS_aoHQ') isNotEqualTo [])} &&
 								{(!isNil {missionNamespace getVariable 'QS_HQpos'})}
 							) then {
-								{
-									if (_x isEqualType _objNull) then {
-										if (!isNull _x) then {
-											0 = (missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'NOW_DISCREET',0];
-										};
-									};
-								} count (missionNamespace getVariable 'QS_aoHQ');
 								['REMOVE','ENEMY_HQ_0'] call _fn_zoneManager;
 							};
 							_aoStartTime = diag_tickTime + 10;
@@ -1713,6 +1706,21 @@ for '_x' from 0 to 1 step 0 do {
 						{(missionNamespace getVariable 'QS_aoCycleVar')}
 					) then {
 						diag_log 'Main AO deactivating';
+						// Capture the Normal AO objects that previously waited on player proximity.
+						// They are force-deleted by the lifecycle timer below.
+						private _normalAO_cleanupObjects = [];
+						private _normalAO_unhideObjects = [];
+						missionNamespace setVariable ['QS_normalAO_deferredAIObjects',[],_false];
+						{
+							if ((_x isEqualType _objNull) && {!isNull _x}) then {
+								_normalAO_cleanupObjects pushBackUnique _x;
+							};
+						} forEach (missionNamespace getVariable ['QS_aoHQ',[]]);
+						{
+							if ((_x isEqualType _objNull) && {!isNull _x}) then {
+								_normalAO_cleanupObjects pushBackUnique _x;
+							};
+						} forEach (missionNamespace getVariable ['QS_HC_AO_enemyArray',[]]);
 						_aoDuration = round (diag_tickTime - _aoStartTime);
 						_aoStats = missionProfileNamespace getVariable ['QS_statistics_classic_aoDuration',[]];
 						_aoStatsIndex = _aoStats findIf { (_x # 0) isEqualTo _aoName };
@@ -1744,10 +1752,21 @@ for '_x' from 0 to 1 step 0 do {
 							['QS_IA_TASK_AO_1'],
 							['QS_IA_TASK_AO_2']
 						];
-						if (alive (missionNamespace getVariable 'QS_radioTower')) then {
-							(missionNamespace getVariable 'QS_radioTower') setDamage [1,_true];
+						private _normalAO_radioTower = missionNamespace getVariable ['QS_radioTower',_objNull];
+						if (!isNull _normalAO_radioTower) then {
+							_normalAO_cleanupObjects pushBackUnique _normalAO_radioTower;
+							if (alive _normalAO_radioTower) then {
+								_normalAO_radioTower setDamage [1,_true];
+							};
 						};
-						[2,'QS_ao_jammer_1'] call _fn_gpsJammer;
+						private _normalAO_jammerIndex = (missionNamespace getVariable ['QS_mission_gpsJammers',[]]) findIf {((_x # 0) isEqualTo 'QS_ao_jammer_1')};
+						if (_normalAO_jammerIndex isNotEqualTo -1) then {
+							private _normalAO_jammerObject = ((missionNamespace getVariable 'QS_mission_gpsJammers') # _normalAO_jammerIndex) # 4;
+							if (!isNull _normalAO_jammerObject) then {
+								_normalAO_cleanupObjects pushBackUnique _normalAO_jammerObject;
+							};
+						};
+						[2,'QS_ao_jammer_1',_true] call _fn_gpsJammer;
 						{
 							_element = _x;
 							_arrayIndex = (missionNamespace getVariable 'QS_AI_regroupPositions') findIf {((_x # 0) isEqualTo _element)};
@@ -1759,16 +1778,18 @@ for '_x' from 0 to 1 step 0 do {
 							'QS_ao_HQ',
 							'QS_ao_SD'
 						];
-						if (((missionNamespace getVariable 'QS_enemyGroundReinforceArray') findIf {(alive _x)}) isNotEqualTo -1) then {
+						if ((missionNamespace getVariable 'QS_enemyGroundReinforceArray') isNotEqualTo []) then {
 							{
 								if (!isNull _x) then {
+									_normalAO_cleanupObjects pushBackUnique _x;
 									_x setDamage 1;
 								};
 							} count (missionNamespace getVariable 'QS_enemyGroundReinforceArray');
 						};
-						if (((missionNamespace getVariable 'QS_enemyVehicleReinforcementsArray') findIf {(alive _x)}) isNotEqualTo -1) then {
+						if ((missionNamespace getVariable 'QS_enemyVehicleReinforcementsArray') isNotEqualTo []) then {
 							{
 								if (!isNull _x) then {
+									_normalAO_cleanupObjects pushBackUnique _x;
 									_x setDamage 1;
 								};
 							} count (missionNamespace getVariable 'QS_enemyVehicleReinforcementsArray');
@@ -1776,13 +1797,14 @@ for '_x' from 0 to 1 step 0 do {
 						if ((missionNamespace getVariable 'QS_enemyJungleCamp_array') isNotEqualTo []) then {
 							{
 								if (!isNull _x) then {
-									0 = (missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'NOW_DISCREET',0];
+									_normalAO_cleanupObjects pushBackUnique _x;
 								};
 							} count (missionNamespace getVariable 'QS_enemyJungleCamp_array');
 						};
-						if (((missionNamespace getVariable 'QS_enemyVehicleReinforcements_crew') findIf {(alive _x)}) isNotEqualTo -1) then {
+						if ((missionNamespace getVariable 'QS_enemyVehicleReinforcements_crew') isNotEqualTo []) then {
 							{
 								if (!isNull _x) then {
+									_normalAO_cleanupObjects pushBackUnique _x;
 									_x setDamage 1;
 								};
 							} count (missionNamespace getVariable 'QS_enemyVehicleReinforcements_crew');
@@ -1817,7 +1839,7 @@ for '_x' from 0 to 1 step 0 do {
 						if ((missionNamespace getVariable ['QS_ao_civVehicles',[]]) isNotEqualTo []) then {
 							{
 								if (!isNull _x) then {
-									(missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'NOW_DISCREET',0];
+									_normalAO_cleanupObjects pushBackUnique _x;
 								};
 							} forEach (missionNamespace getVariable ['QS_ao_civVehicles',[]]);
 							missionNamespace setVariable ['QS_ao_civVehicles',[],_false];
@@ -1828,7 +1850,7 @@ for '_x' from 0 to 1 step 0 do {
 									if (_x in allMines) then {
 										deleteVehicle _x;
 									} else {
-										(missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'NOW_DISCREET',0];
+										_normalAO_cleanupObjects pushBackUnique _x;
 									};
 								};
 							} forEach (missionNamespace getVariable ['QS_entities_ao_customEntities',[]]);
@@ -1837,7 +1859,7 @@ for '_x' from 0 to 1 step 0 do {
 						if ((missionNamespace getVariable ['QS_entities_ao_customStructures',[]]) isNotEqualTo []) then {
 							{
 								if (!isNull _x) then {
-									(missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'NOW_DISCREET',0];
+									_normalAO_cleanupObjects pushBackUnique _x;
 								};
 							} forEach (missionNamespace getVariable ['QS_entities_ao_customStructures',[]]);
 							missionNamespace setVariable ['QS_entities_ao_customStructures',[],_false];
@@ -1928,7 +1950,7 @@ for '_x' from 0 to 1 step 0 do {
 							{
 								if (!isNull _x) then {
 									if (isObjectHidden _x) then {
-										(missionNamespace getVariable 'QS_garbageCollector') pushBack [_x,'UNHIDE_DISCREET',0];
+										_normalAO_unhideObjects pushBackUnique _x;
 									};
 								};
 							} forEach (missionNamespace getVariable 'QS_virtualSectors_hiddenTerrainObjects');
@@ -1962,11 +1984,91 @@ for '_x' from 0 to 1 step 0 do {
 						};
 						missionNamespace setVariable ['QS_ao_createDelayedMinefield',_false,_false];
 						['DEBRIEF',_ao,_QS_AOpos] call _fn_aoBriefing;
+						private _normalAO_defendScript = scriptNull;
 						if ((_ao # 8) isNotEqualTo 0) then {
 							_defendAO = _true;
 							_defendAOActive = _true;
 							_isDefendLocal = _true;
 							_defendAOScript = 0 spawn _fn_aoDefend;
+							_normalAO_defendScript = _defendAOScript;
+						};
+						// Preserve the HQ through Defend, then remove all captured remnants 30 seconds
+						// after the final mission script finishes. A Normal AO without Defend starts
+						// the same 30-second delay immediately.
+						[
+							_normalAO_cleanupObjects,
+							_normalAO_unhideObjects,
+							_QS_AOpos,
+							((_ao # 8) isNotEqualTo 0),
+							_normalAO_defendScript
+						] spawn {
+							params ['_cleanupObjects','_unhideObjects','_aoPosition','_waitForDefend','_defendScript'];
+							if (_waitForDefend) then {
+								waitUntil {
+									uiSleep 1;
+									scriptDone _defendScript
+								};
+							};
+							uiSleep 30;
+							{
+								if ((_x isEqualType objNull) && {!isNull _x}) then {
+									_cleanupObjects pushBackUnique _x;
+								};
+							} forEach (missionNamespace getVariable ['QS_normalAO_deferredAIObjects',[]]);
+							missionNamespace setVariable ['QS_normalAO_deferredAIObjects',[],FALSE];
+							{
+								if (
+									(!isNull _x) &&
+									{((_x distance2D _aoPosition) < 1500)} &&
+									{(!(_x getVariable ['QS_dead_prop',FALSE]))}
+								) then {
+									_cleanupObjects pushBackUnique _x;
+								};
+							} forEach allDead;
+							private _cleanupGroups = [];
+							private _deletedCount = 0;
+							private _unhiddenCount = 0;
+							{
+								if (!isNull _x) then {
+									if (_x isKindOf 'CAManBase') then {
+										private _unitGroup = group _x;
+										if (!isNull _unitGroup) then {
+											_cleanupGroups pushBackUnique _unitGroup;
+										};
+									};
+									{
+										[0,_x] call (missionNamespace getVariable 'QS_fnc_eventAttach');
+										deleteVehicle _x;
+									} forEach (attachedObjects _x);
+									missionNamespace setVariable [
+										'QS_analytics_entities_deleted',
+										((missionNamespace getVariable ['QS_analytics_entities_deleted',0]) + 1),
+										FALSE
+									];
+									if ((_x isKindOf 'CAManBase') && {!isNull (objectParent _x)} && {(objectParent _x) isKindOf 'AllVehicles'}) then {
+										(objectParent _x) deleteVehicleCrew _x;
+									} else {
+										deleteVehicle _x;
+									};
+									_deletedCount = _deletedCount + 1;
+								};
+							} forEach _cleanupObjects;
+							{
+								if ((!isNull _x) && {local _x} && {(units _x) isEqualTo []}) then {
+									deleteGroup _x;
+								};
+							} forEach _cleanupGroups;
+							{
+								if (!isNull _x) then {
+									_x hideObjectGlobal FALSE;
+									_unhiddenCount = _unhiddenCount + 1;
+								};
+							} forEach _unhideObjects;
+							diag_log format [
+								'***** NORMAL AO CLEANUP ***** Forced cleanup completed: %1 entities, %2 terrain objects *****',
+								_deletedCount,
+								_unhiddenCount
+							];
 						};
 						_aoStartDelay = time + (30 + (random 15));
 					};
