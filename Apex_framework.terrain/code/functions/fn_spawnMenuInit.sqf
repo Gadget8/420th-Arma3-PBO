@@ -90,6 +90,7 @@ if (
 				);
 				if (
 					_isLogisticsObject &&
+					{!(_entity getVariable ['QS_logistics_deployed',FALSE])} &&
 					{!(_entity getVariable ['QS_spawnMenu_logisticsCleanupQueued',FALSE])} &&
 					{!isNil {missionNamespace getVariable 'QS_garbageCollector'}}
 				) then {

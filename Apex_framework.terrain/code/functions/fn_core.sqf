@@ -544,6 +544,21 @@ _checkFrequencyAccelerated = 30;
 _playerThreshold = 20;
 _QS_garbageCollector_enabled = TRUE;
 _QS_garbageCollector = [];
+private _fn_spawnMenuLogisticsInUse = {
+	params ['_entity'];
+	if (isNull _entity) exitWith {FALSE};
+
+	(!local _entity) ||
+	{(_entity getVariable ['QS_logistics_deployed',FALSE])} ||
+	{!isNull (isVehicleCargo _entity)} ||
+	{!isNull (attachedTo _entity)} ||
+	{!isNull (ropeAttachedTo _entity)} ||
+	{(getVehicleCargo _entity) isNotEqualTo []} ||
+	{(attachedObjects _entity) isNotEqualTo []} ||
+	{(ropeAttachedObjects _entity) isNotEqualTo []} ||
+	{(_entity getVariable ['QS_virtualCargo',[]]) isNotEqualTo []} ||
+	{!isNull (getTowParent _entity)}
+};
 _QS_deleteThis = FALSE;
 _QS_attemptRecycle = FALSE;
 _missionObject = objNull;
@@ -3929,18 +3944,23 @@ for '_x' from 0 to 1 step 0 do {
 
 										};
 										if (_QS_instructions isEqualTo 'SPAWN_MENU_LOGISTICS') then {
-											if (!(_QS_obj getVariable ['QS_logistics_deployed',_false])) then {
-												private _spawnMenuBaseRadius = 1000;
-												private _spawnMenuPlayerRadius = if (
-													((_QS_objWorldPos distance2D (markerPos 'QS_marker_base_marker')) <= _spawnMenuBaseRadius)
-												) then {
-													50
-												} else {
-													2000
-												};
-												if ((_allPlayers inAreaArray [_QS_objWorldPos,_spawnMenuPlayerRadius,_spawnMenuPlayerRadius,0,_false]) isEqualTo []) then {
-													_QS_attemptRecycle = _true;
-													_QS_deleteThis = _true;
+											if (_QS_obj getVariable ['QS_logistics_deployed',_false]) then {
+												_QS_obj setVariable ['QS_spawnMenu_logisticsCleanupQueued',_false,_false];
+												(missionNamespace getVariable 'QS_garbageCollector') set [_forEachIndex,_false];
+											} else {
+												if (!([_QS_obj] call _fn_spawnMenuLogisticsInUse)) then {
+													private _spawnMenuBaseRadius = 1000;
+													private _spawnMenuPlayerRadius = if (
+														((_QS_objWorldPos distance2D (markerPos 'QS_marker_base_marker')) <= _spawnMenuBaseRadius)
+													) then {
+														50
+													} else {
+														2000
+													};
+													if ((_allPlayers inAreaArray [_QS_objWorldPos,_spawnMenuPlayerRadius,_spawnMenuPlayerRadius,0,_false]) isEqualTo []) then {
+														_QS_attemptRecycle = _true;
+														_QS_deleteThis = _true;
+													};
 												};
 											};
 										};
@@ -3974,21 +3994,26 @@ for '_x' from 0 to 1 step 0 do {
 				if (_QS_garbageCollector isNotEqualTo []) then {
 					{
 						if (!isNull _x) then {
-							missionNamespace setVariable ['QS_analytics_entities_deleted',((missionNamespace getVariable 'QS_analytics_entities_deleted') + 1),_false];
-							if (_x isKindOf 'CAManBase') then {
-								if (!isNull (objectParent _x)) then {
-									if ((objectParent _x) isKindOf 'AllVehicles') then {
-										(objectParent _x) deleteVehicleCrew _x;
+							private _spawnMenuLogisticsDeletionBlocked =
+								(_x getVariable ['QS_spawnMenu_logisticsCleanupQueued',_false]) &&
+								{[_x] call _fn_spawnMenuLogisticsInUse};
+							if (!_spawnMenuLogisticsDeletionBlocked) then {
+								missionNamespace setVariable ['QS_analytics_entities_deleted',((missionNamespace getVariable 'QS_analytics_entities_deleted') + 1),_false];
+								if (_x isKindOf 'CAManBase') then {
+									if (!isNull (objectParent _x)) then {
+										if ((objectParent _x) isKindOf 'AllVehicles') then {
+											(objectParent _x) deleteVehicleCrew _x;
+										} else {
+											deleteVehicle _x;
+										};
 									} else {
 										deleteVehicle _x;
 									};
 								} else {
 									deleteVehicle _x;
 								};
-							} else {
-								deleteVehicle _x;
+								uiSleep 0.007;
 							};
-							uiSleep 0.007;
 						} else {
 							if (_x isEqualType []) then {
 								_element = _x;
