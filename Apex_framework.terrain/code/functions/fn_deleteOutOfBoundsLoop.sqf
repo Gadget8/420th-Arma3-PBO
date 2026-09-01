@@ -7,25 +7,32 @@ if !(isNil "QS_deleteOutOfBoundsLoopStarted") exitWith {};
 QS_deleteOutOfBoundsLoopStarted = true;
 
 // f16 probably means half-precision which has a range of +/- 65504
-private _minXY = -10000;
+private _minXY = -6000;
 private _maxXY = worldSize - _minXY;
-private _minZ = -1000;
-private _maxZ = 50000;
+private _minZ = -10;
+private _maxZ = 20000;
 
 while {true} do {
-    sleep (60 + random 10);
+    sleep (30 + random 10);
     // ~0.7287ms for 945 entities
     private _props = allMissionObjects "";
     diag_log text format ["%1: scanning %2 props", _fnc_scriptName, count _props];
 
     _props = _props apply {[_x, getPosWorld _x]} select {
-        _x # 1 # 0 < _minXY
-        || {_x # 1 # 1 < _minXY
-        || {_x # 1 # 2 < _minZ
-        || {_x # 1 # 0 > _maxXY
-        || {_x # 1 # 1 > _maxXY
-        || {_x # 1 # 2 > _maxZ}}}}}
+        _x params ["_object", "_position"];
+        isNull (attachedTo _object) && {
+            (_position # 0 < _minXY)
+            || (_position # 1 < _minXY)
+            || (_position # 2 < _minZ)
+            || (_position # 0 > _maxXY)
+            || (_position # 1 > _maxXY)
+            || (_position # 2 > _maxZ)
+        }
     } apply {_x # 0};
+    if (_props isEqualTo []) then {continue};
+
+    // Recheck immediately before deletion in case an object was attached after the scan.
+    _props = _props select {isNull (attachedTo _x)};
     if (_props isEqualTo []) then {continue};
 
     diag_log text format ["%1: detected %2 props out of bounds", _fnc_scriptName, count _props];
