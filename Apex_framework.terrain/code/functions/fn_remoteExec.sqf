@@ -2366,6 +2366,7 @@ if (_case < 100) exitWith {
 		private _grp = grpNull;
 		private _var = '';
 		private _syncedGroups = 0;
+		private _variableWhitelist = missionNamespace getVariable ['QS_AI_HC_groupVariableWhitelist',[]];
 		{
 			if (
 				(local _x) &&
@@ -2374,10 +2375,10 @@ if (_case < 100) exitWith {
 				_grp = _x;
 				{
 					_var = _x;
-					if !(_var in ['QS_AI_GRP_HC_LocalEH','QS_AI_GRP_HC_AgentLocalEH']) then {
+					if (!isNil {_grp getVariable _var}) then {
 						_grp setVariable [_var,_grp getVariable _var,_claimedOwner];
 					};
-				} forEach ((allVariables _grp) select [0,128]);
+				} forEach _variableWhitelist;
 				_syncedGroups = _syncedGroups + 1;
 			};
 			if (_syncedGroups >= 256) exitWith {};

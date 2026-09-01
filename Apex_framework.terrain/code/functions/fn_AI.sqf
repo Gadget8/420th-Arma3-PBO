@@ -483,6 +483,37 @@ private _QS_module_hc_agents_s2 = [];
 private _QS_module_hc_agents_s3 = [];
 
 private _QS_module_hc_agents = [];
+private _QS_module_hc_groupVariableWhitelist = [
+	'QS_AI_GRP',
+	'QS_AI_GRP_CONFIG',
+	'QS_AI_GRP_DATA',
+	'QS_AI_GRP_TASK',
+	'QS_AI_GRP_PATROLINDEX',
+	'QS_AI_GRP_fireMission',
+	'QS_AI_GRP_MTR_cooldown',
+	'QS_AI_GRP_disableBldgPtl',
+	'QS_AI_GRP_AO_AA',
+	'QS_AI_GRP_stalker',
+	'QS_AI_GRP_stalker_priorPosition',
+	'QS_AI_GRP_regrouping',
+	'QS_AI_GRP_regroupPos',
+	'QS_AI_engineer_vehicles',
+	'QS_dynSim_ignore'
+];
+private _QS_module_hc_agentVariableWhitelist = [
+	'QS_AI_ENTITY',
+	'QS_AI_ENTITY_CONFIG',
+	'QS_AI_ENTITY_DATA',
+	'QS_AI_ENTITY_TASK',
+	'QS_AI_ENTITY_CIRCUITINDEX',
+	'QS_AI_ENTITY_PANIC',
+	'QS_AI_ENTITY_PANIC_ACTIVE',
+	'QS_AI_ENTITY_PANIC_DELAY',
+	'QS_AI_ENTITY_PANIC_DISABLED',
+	'QS_dynSim_ignore',
+	'QS_curator_disableEditability'
+];
+missionNamespace setVariable ['QS_AI_HC_groupVariableWhitelist',_QS_module_hc_groupVariableWhitelist,FALSE];
 
 private _QS_module_hc_log_delay = 60;
 private _QS_module_hc_log_checkDelay = time + _QS_module_hc_delay;
@@ -878,8 +909,8 @@ for '_x' from 0 to 1 step 0 do {
 
 						//======================= STEP 0 - 1
 						_QS_module_hc_groups_s0 = _QS_module_groupBehaviors_localGroups select {
-							(((_x getVariable ['QS_AI_GRP_HC',[-1,2]]) # 0) isEqualTo 0)
-							// check alive/count state incase group has been killed off
+							(((_x getVariable ['QS_AI_GRP_HC',[-1,2]]) # 0) isEqualTo 0) &&
+							{!(_x getVariable ['QS_AI_GRP_HC_EXCLUDED',FALSE])}
 						};
 						if (_QS_module_hc_groups_s0 isNotEqualTo []) then {
 							_exit = _true;
@@ -913,10 +944,10 @@ for '_x' from 0 to 1 step 0 do {
 							} forEach (units _grp);
 							_grpData pushBack _unitsData;
 							{
-								if ((toLowerANSI _x) isNotEqualTo 'qs_ai_grp_hc_localeh') then {
+								if (!isNil {_grp getVariable _x}) then {
 									_grp setVariable [_x,_grp getVariable _x,[2,_QS_module_hc_ID]];
 								};
-							} forEach (allVariables _grp);
+							} forEach _QS_module_hc_groupVariableWhitelist;
 							_grp setVariable ['QS_AI_GRP_HC_data',_grpData,[2,_QS_module_hc_ID]];
 							_grp setVariable ['QS_AI_GRP_HC',[1,_QS_module_hc_ID],[2,_QS_module_hc_ID]];
 						};
@@ -963,10 +994,10 @@ for '_x' from 0 to 1 step 0 do {
 							_exit = _true;
 							_QS_module_agentBehaviors_agent = selectRandom _QS_module_hc_agents_s0;
 							{
-								if ((toLowerANSI _x) isNotEqualTo 'qs_ai_entity_hc_localeh') then {
+								if (!isNil {_QS_module_agentBehaviors_agent getVariable _x}) then {
 									_QS_module_agentBehaviors_agent setVariable [_x,_QS_module_agentBehaviors_agent getVariable _x,[2,_QS_module_hc_ID]];
 								};
-							} forEach (allVariables _QS_module_agentBehaviors_agent);
+							} forEach _QS_module_hc_agentVariableWhitelist;
 							_QS_module_agentBehaviors_agent setVariable ['BIS_fnc_animalBehaviour_disable',_true,[2,_QS_module_hc_ID]];
 							_QS_module_agentBehaviors_agent setVariable ['QS_AI_ENTITY_HC',[1,_QS_module_hc_ID],[2,_QS_module_hc_ID]];
 						};	
