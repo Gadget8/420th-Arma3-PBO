@@ -20,6 +20,14 @@ if ((!_isRx) || {_isRxJ}) exitWith {diag_log format ['Remote Exec Cmd Failed wit
 if (!(_this isEqualType [])) exitWith {};
 
 private _clientToServer = isServer && {_rxID > 2};
+private _type = _this param [0,''];
+if (_type isEqualType []) exitWith {
+	private _lastLog = missionNamespace getVariable ['QS_remoteExecCmd_blockedBatchLogTime',-10];
+	if ((diag_tickTime - _lastLog) >= 10) then {
+		missionNamespace setVariable ['QS_remoteExecCmd_blockedBatchLogTime',diag_tickTime,FALSE];
+		diag_log format ['***** REMOTE EXEC COMMAND BATCH BLOCKED ***** owner %1 entries %2',_rxID,count _this];
+	};
+};
 private _rejectRequest = FALSE;
 private _rejectReason = '';
 if (_clientToServer) then {
@@ -64,7 +72,6 @@ if (_clientToServer) then {
 		};
 	};
 
-	private _typeForRate = _this param [0,''];
 	private _rateMap = missionNamespace getVariable ['QS_remoteExecCmd_rateMap',createHashMap];
 	if ((count _rateMap) > 128) then {
 		_rateMap = createHashMap;
@@ -78,7 +85,7 @@ if (_clientToServer) then {
 		_rateState set [3,0];
 	};
 	_rateState set [1,(_rateState # 1) + 1];
-	private _isHeavyRequest = (_typeForRate isEqualType '') && {_typeForRate in ['setOwner','setGroupOwner','hideObjectGlobal','setMass','setCenterOfMass','setVelocity','setVelocityModelSpace','setTowParent','setVehicleCargo','ropeDestroy','ropeDetach','addForce','addTorque']};
+	private _isHeavyRequest = (_type isEqualType '') && {_type in ['setOwner','setGroupOwner','hideObjectGlobal','setMass','setCenterOfMass','setVelocity','setVelocityModelSpace','setTowParent','setVehicleCargo','ropeDestroy','ropeDetach','addForce','addTorque']};
 	if (_isHeavyRequest) then {
 		_rateState set [3,(_rateState param [3,0,[0]]) + 1];
 	};
@@ -88,24 +95,6 @@ if (_clientToServer) then {
 	};
 	_rateMap set [_rateKey,_rateState];
 	missionNamespace setVariable ['QS_remoteExecCmd_rateMap',_rateMap,FALSE];
-};
-
-private _type = _this param [0,''];
-if (_clientToServer && {!_rejectRequest} && {_type isEqualType []}) then {
-	if ((count _this) > 16) then {
-		_rejectRequest = TRUE;
-		_rejectReason = 'batch length';
-	} else {
-		if ((_this findIf {
-			(!(_x isEqualType [])) ||
-			{(count _x) < 2} ||
-			{(count _x) > 3} ||
-			{!((_x # 0) isEqualType '')}
-		}) isNotEqualTo -1) then {
-			_rejectRequest = TRUE;
-			_rejectReason = 'batch depth';
-		};
-	};
 };
 
 if (_rejectRequest) exitWith {
@@ -120,12 +109,6 @@ if (_rejectRequest) exitWith {
 			diag_log format ['***** REMOTE EXEC COMMAND REJECTED ***** owner %1 type %2 (%3)',_rxID,_type,_rejectReason];
 		};
 	};
-};
-
-if (_type isEqualType []) exitWith {
-	{
-		_x call (missionNamespace getVariable 'QS_fnc_remoteExecCmd');
-	} forEach _this;
 };
 if (((count _this) < 2) || {!(_type isEqualType '')}) exitWith {};
 params ['_type','_1','_2'];

@@ -20,6 +20,25 @@ private _isRxJ = isRemoteExecutedJIP;
 private _rxID = remoteExecutedOwner;
 
 /*
+	Retire dormant development/deployment entry points for every origin except
+	the server, restrict the disabled staff cleanup requests to the server, and
+	reject delete requests from HC/unknown origins. The dormant and staff-only
+	selectors have no active mission call sites. Keep rejection logging
+	metadata-only and bounded so hostile traffic cannot flood the RPT.
+*/
+private _blockedCase =
+	((_case in [-2,-1]) && {_rxID isNotEqualTo 2}) ||
+	{isServer && {_case isEqualTo 17} && {_rxID <= 2} && {_rxID isNotEqualTo 2}} ||
+	{isServer && {_case in [53,54]} && {_rxID isNotEqualTo 2}};
+if (_blockedCase) exitWith {
+	private _lastLog = missionNamespace getVariable ['QS_remoteExec_blockedCaseLogTime',-10];
+	if ((diag_tickTime - _lastLog) >= 10) then {
+		missionNamespace setVariable ['QS_remoteExec_blockedCaseLogTime',diag_tickTime,FALSE];
+		diag_log format ['***** REMOTE EXECUTION BLOCKED ***** owner %1 case %2',_rxID,_case];
+	};
+};
+
+/*
 	Only police requests arriving from a client at the server. Server-originated
 	broadcasts and the few intentional local calls to this dispatcher must retain
 	their existing behaviour. The structural walk is deliberately bounded so the
@@ -83,7 +102,7 @@ if (_clientToServer) then {
 		_rateState set [3,0];
 	};
 	_rateState set [1,(_rateState # 1) + 1];
-	private _isHeavyRequest = _case in [24,39,69,71,75,106,107,108,109,111,112,115,117,118,119,120,123];
+	private _isHeavyRequest = _case in [17,24,39,69,71,75,106,107,108,109,111,112,115,117,118,119,120,123];
 	if (_isHeavyRequest) then {
 		_rateState set [3,(_rateState param [3,0,[0]]) + 1];
 	};
@@ -94,13 +113,43 @@ if (_clientToServer) then {
 	_rateMap set [_rateKey,_rateState];
 	missionNamespace setVariable ['QS_remoteExec_rateMap',_rateMap,FALSE];
 
-	/* Bind the most dangerous global object operations to the actual sender. */
-	if ((!_rejectRequest) && {_case in [39,69,71]}) then {
+	/* Bind sensitive player requests and global object operations to the actual sender. */
+	if ((!_rejectRequest) && {_case in [17,27,39,69,71]}) then {
 		private _sender = (allPlayers select {((owner _x) isEqualTo _rxID) && {!(_x isKindOf 'HeadlessClient_F')}}) param [0,objNull];
 		if (isNull _sender) then {
 			_rejectRequest = TRUE;
 			_rejectReason = 'sender';
 		} else {
+			if (_case isEqualTo 17) then {
+				private _object = _this param [1,objNull,[objNull]];
+				if (
+					((count _this) < 2) ||
+					{(count _this) > 3} ||
+					{!((_this # 1) isEqualType objNull)} ||
+					{isNull _object} ||
+					{isPlayer _object} ||
+					{((count _this) isEqualTo 3) && {!((_this # 2) isEqualType FALSE)}}
+				) then {
+					_rejectRequest = TRUE;
+					_rejectReason = 'case 17 shape';
+				};
+			};
+			if (_case isEqualTo 27) then {
+				private _client = _this param [1,objNull,[objNull]];
+				private _puid = _this param [2,'',['']];
+				private _claimedOwner = _this param [3,-1,[0]];
+				if (
+					((count _this) isNotEqualTo 4) ||
+					{isNull _client} ||
+					{!isPlayer _client} ||
+					{(_client isNotEqualTo _sender)} ||
+					{(_puid isNotEqualTo (getPlayerUID _sender))} ||
+					{(_claimedOwner isNotEqualTo _rxID)}
+				) then {
+					_rejectRequest = TRUE;
+					_rejectReason = 'case 27 ownership';
+				};
+			};
 			if (_case isEqualTo 39) then {
 				private _object = _this param [1,objNull,[objNull]];
 				private _state = _this param [2,FALSE,[FALSE]];

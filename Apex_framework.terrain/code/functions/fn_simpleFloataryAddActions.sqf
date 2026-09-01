@@ -5,6 +5,7 @@
 */
 params [["_vehicle",objNull,[objNull]]];
 
+if (isRemoteExecuted && {remoteExecutedOwner isNotEqualTo 2}) exitWith {};
 if (!hasInterface || {isNull _vehicle}) exitWith {};
 if (isNil "FLRYAllWatercraftCarrierClassNames") exitWith {};
 if !(typeOf _vehicle in FLRYAllWatercraftCarrierClassNames) exitWith {};
