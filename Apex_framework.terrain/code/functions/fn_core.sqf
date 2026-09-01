@@ -4025,18 +4025,14 @@ for '_x' from 0 to 1 step 0 do {
 						};
 					} count _QS_garbageCollector;
 				};
+				private _garbageCollectorQueue = missionNamespace getVariable ['QS_garbageCollector',[]];
 				{
 					if (_x isEqualType _true) then {
-						(missionNamespace getVariable 'QS_garbageCollector') deleteAt _forEachIndex;
+						_garbageCollectorQueue deleteAt _forEachIndex;
 					};
-				} forEach (missionNamespace getVariable 'QS_garbageCollector');
+				} forEachReversed _garbageCollectorQueue;
 				missionNamespace setVariable ['QS_collectingGarbage',_false,_false];
 			};
-			{
-				if (_x isEqualType _true) then {
-					(missionNamespace getVariable 'QS_garbageCollector') deleteAt _forEachIndex;
-				};
-			} forEach (missionNamespace getVariable 'QS_garbageCollector');
 		};
 		// Only enumerate classes consumed by this cleanup pass.  A full
 		// allMissionObjects/allSimpleObjects census can monopolize a server frame on
