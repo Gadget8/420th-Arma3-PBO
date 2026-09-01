@@ -344,7 +344,7 @@ if (
 									(_targetPosition inRangeOfArtillery [[_supportProvider],((magazines (vehicle _supportProvider)) # 0)])
 								) then {
 									(missionNamespace getVariable ['QS_AI_cmdr_recentSuppPositions',[]]) pushBack [_targetPosition,serverTime + (60 + (random 300))];
-									(format ['%2 %1',mapGridPosition _targetPosition,localize 'STR_QS_Chat_078']) remoteExec ['systemChat',-2];
+									['systemChat',(format ['%2 %1',mapGridPosition _targetPosition,localize 'STR_QS_Chat_078'])] remoteExec ['QS_fnc_remoteExecCmd',-2,FALSE];
 									_supportGroup setVariable ['QS_AI_GRP_fireMission',[(_targetPosition getPos [random 50,random 360]),((magazines (vehicle _supportProvider)) # 0),(round (4 + (random 4))),(serverTime + 90)],QS_system_AI_owners];
 									_exit = TRUE;
 								};
@@ -760,7 +760,7 @@ if (
 								if (local _v) then {
 									_v setVehicleAmmo 1;
 								} else {
-									[_v,1] remoteExec ['setVehicleAmmo',_v,FALSE];
+									['setVehicleAmmo',_v,1] remoteExec ['QS_fnc_remoteExecCmd',_v,FALSE];
 								};
 							};
 						};
