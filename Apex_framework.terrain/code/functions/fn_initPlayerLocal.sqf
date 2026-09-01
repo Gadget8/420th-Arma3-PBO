@@ -424,6 +424,13 @@ if ((call (missionNamespace getVariable 'QS_fnc_clientGetSupporterLevel')) > 0) 
 	['QS_eval_frameInterval_30',0]
 ];
 /*/====================== PLAYER OBJECT =====/*/
+private _initialPlayerSide = side (group player);
+if (_initialPlayerSide isEqualTo sideUnknown) then {
+	_initialPlayerSide = side player;
+};
+if (_initialPlayerSide isEqualTo sideUnknown) then {
+	_initialPlayerSide = WEST;
+};
 {
 	player setVariable _x;
 } forEach [
@@ -460,7 +467,7 @@ if ((call (missionNamespace getVariable 'QS_fnc_clientGetSupporterLevel')) > 0) 
 	['QS_client_shots_sniper',0,FALSE],
 	['QS_client_hits_sniper',0,FALSE],
 	['QS_client_lastCombatDamageTime',-1,FALSE],
-	['QS_unit_side',WEST,TRUE]
+	['QS_unit_side',_initialPlayerSide,TRUE]
 ];
 // Remove BIS Zeus stuff
 if (!isNil {player getVariable 'BIS_fnc_addCuratorPlayer_handler'}) then {
