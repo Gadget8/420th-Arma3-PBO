@@ -506,6 +506,11 @@ private _weaponsList = configFile >> 'CfgWeapons';
 	['QS_hc_Commander',objNull,TRUE],
 	['QS_arrest_target',objNull,TRUE],
 	['QS_aoSmallTask_Arrested',FALSE,TRUE],
+	[
+		'QS_missionConfig_enemyUAVDiagnosticsEnabled',
+		((missionNamespace getVariable ['QS_missionConfig_enemyUAVDiagnosticsEnabled',FALSE]) isEqualTo TRUE),
+		FALSE
+	],
 	['QS_draw3D_projectiles',[],TRUE],
 	['QS_client_customDraw2D',[],TRUE],
 	['QS_client_customDraw3D',[],TRUE],
@@ -761,6 +766,9 @@ private _weaponsList = configFile >> 'CfgWeapons';
 	['QS_markers_fireSupport_queue',[],FALSE],
 	['QS_managed_flares',[],FALSE]
 ];
+if (missionNamespace getVariable ['QS_missionConfig_enemyUAVDiagnosticsEnabled',FALSE]) then {
+	[] call (missionNamespace getVariable 'QS_fnc_enemyUAVDiagnostics');
+};
 // Local Namespace
 {
 	localNamespace setVariable _x;

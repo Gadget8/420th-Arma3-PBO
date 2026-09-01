@@ -3,25 +3,79 @@ File: fn_enemyUAVDiagnostics.sqf
 
 Description:
 
-	Log the network and motion state of every enemy UAV created during the
-	mission. The delay allows spawn initialization and createVehicleCrew to
-	finish before the state is sampled.
+	Log bounded network and motion state for enemy UAVs created while the
+	explicit diagnostics switch is enabled. The delay allows spawn
+	initialization and createVehicleCrew to finish before state is sampled.
 __________________________________________________*/
 
 if (!isServer) exitWith {};
+if ((missionNamespace getVariable ['QS_missionConfig_enemyUAVDiagnosticsEnabled',FALSE]) isNotEqualTo TRUE) exitWith {};
 if (missionNamespace getVariable ['QS_enemyUAVDiagnostics_initialized',FALSE]) exitWith {};
+
 missionNamespace setVariable ['QS_enemyUAVDiagnostics_initialized',TRUE,FALSE];
+missionNamespace setVariable ['QS_enemyUAVDiagnostics_pendingWorkers',0,FALSE];
+missionNamespace setVariable ['QS_enemyUAVDiagnostics_throttledCount',0,FALSE];
+missionNamespace setVariable ['QS_enemyUAVDiagnostics_nextThrottleLog',0,FALSE];
 
 QS_enemyUAVDiagnostics_entityCreatedEH = addMissionEventHandler [
 	'EntityCreated',
 	{
-		params ['_entity'];
-		if (!(unitIsUAV _entity)) exitWith {};
+		params [['_entity',objNull,[objNull]]];
+
+		if (
+			((missionNamespace getVariable ['QS_missionConfig_enemyUAVDiagnosticsEnabled',FALSE]) isNotEqualTo TRUE) ||
+			{isNull _entity} ||
+			{!(unitIsUAV _entity)}
+		) exitWith {};
+
+		private _pendingWorkers = missionNamespace getVariable ['QS_enemyUAVDiagnostics_pendingWorkers',0];
+		private _maxPendingWorkers = 8;
+
+		if (_pendingWorkers >= _maxPendingWorkers) exitWith {
+			private _throttledCount =
+				(missionNamespace getVariable ['QS_enemyUAVDiagnostics_throttledCount',0]) + 1;
+			missionNamespace setVariable [
+				'QS_enemyUAVDiagnostics_throttledCount',
+				_throttledCount,
+				FALSE
+			];
+
+			if (diag_tickTime >= (missionNamespace getVariable ['QS_enemyUAVDiagnostics_nextThrottleLog',0])) then {
+				diag_log text format [
+					'QS_ENEMY_UAV_DIAGNOSTICS_THROTTLED dropped=%1 pending=%2 cap=%3',
+					_throttledCount,
+					_pendingWorkers,
+					_maxPendingWorkers
+				];
+				missionNamespace setVariable ['QS_enemyUAVDiagnostics_throttledCount',0,FALSE];
+				missionNamespace setVariable [
+					'QS_enemyUAVDiagnostics_nextThrottleLog',
+					diag_tickTime + 60,
+					FALSE
+				];
+			};
+		};
+
+		missionNamespace setVariable [
+			'QS_enemyUAVDiagnostics_pendingWorkers',
+			_pendingWorkers + 1,
+			FALSE
+		];
 
 		[_entity] spawn {
 			params ['_uav'];
 			uiSleep 1;
-			if (isNull _uav) exitWith {};
+
+			missionNamespace setVariable [
+				'QS_enemyUAVDiagnostics_pendingWorkers',
+				((missionNamespace getVariable ['QS_enemyUAVDiagnostics_pendingWorkers',1]) - 1) max 0,
+				FALSE
+			];
+
+			if (
+				((missionNamespace getVariable ['QS_missionConfig_enemyUAVDiagnosticsEnabled',FALSE]) isNotEqualTo TRUE) ||
+				{isNull _uav}
+			) exitWith {};
 
 			private _crew = crew _uav;
 			private _liveSide = if (_crew isNotEqualTo []) then {
@@ -33,6 +87,7 @@ QS_enemyUAVDiagnostics_entityCreatedEH = addMissionEventHandler [
 				getNumber ((configOf _uav) >> 'side'),
 				sideUnknown
 			];
+
 			if (!((_liveSide in [EAST,RESISTANCE]) || {_configSide in [EAST,RESISTANCE]})) exitWith {};
 
 			diag_log text format [
