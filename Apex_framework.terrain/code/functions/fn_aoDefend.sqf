@@ -429,7 +429,7 @@ for '_x' from 0 to 1 step 0 do {
 	_allPlayers = allPlayers;
 	_allPlayersCount = count _allPlayers;
 	_allArray = _allArray select {(alive _x)};
-	if (_timeNow > _uavInitialSpawnDelay) then {
+	if ((missionNamespace getVariable ['QS_enemyUAVSpawningEnabled',FALSE]) && {_timeNow > _uavInitialSpawnDelay}) then {
 		if (_timeNow > _uavCheckDelay) then {
 			// Maintained live cap follows the current player count.
 			_uavMaxSpawned = 1;

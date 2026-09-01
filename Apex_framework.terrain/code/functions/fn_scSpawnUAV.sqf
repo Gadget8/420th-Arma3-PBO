@@ -13,6 +13,8 @@ Description:
 	Spawn UAV Patrol
 __________________________________________________/*/
 
+if (!(missionNamespace getVariable ['QS_enemyUAVSpawningEnabled',FALSE])) exitWith {[]};
+
 private _return = [];
 _centerPos = missionNamespace getVariable 'QS_AOpos';
 _centerRadius = missionNamespace getVariable 'QS_aoSize';

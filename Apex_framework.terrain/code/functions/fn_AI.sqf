@@ -1304,7 +1304,7 @@ for '_x' from 0 to 1 step 0 do {
 						};
 					};
 					//comment 'Manage UAV patrol';
-					if (_QS_module_virtualSectors_uavEnabled) then {
+					if ((_QS_module_virtualSectors_uavEnabled) && {missionNamespace getVariable ['QS_enemyUAVSpawningEnabled',FALSE]}) then {
 						if (missionNamespace getVariable 'QS_virtualSectors_sub_1_active') then {
 							if (_QS_uiTime > _QS_module_virtualSectors_uav_checkDelay) then {
 								_QS_module_virtualSectors_uavs = _QS_module_virtualSectors_uavs select {(alive _x)};
@@ -1715,7 +1715,7 @@ for '_x' from 0 to 1 step 0 do {
 						};
 					};
 					//comment 'Manage UAV patrol';
-					if (_QS_module_classic_uavEnabled) then {
+					if ((_QS_module_classic_uavEnabled) && {missionNamespace getVariable ['QS_enemyUAVSpawningEnabled',FALSE]}) then {
 						if (_QS_uiTime > _QS_module_classic_uav_checkDelay) then {
 							_QS_module_classic_uavs = _QS_module_classic_uavs select {(alive _x)};
 							if ((_QS_module_classic_uavs findIf {(unitIsUav _x)}) isEqualTo -1) then {
