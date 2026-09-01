@@ -34,7 +34,8 @@ The frozen served PBO, extracted tree, comparison CSV, and summary JSON are reta
 | HC command-whitelist correction | `1095da7` | Routes HC `systemChat` and `setVehicleAmmo` effects through allowed wrappers |
 | HC surrender correction | `5820dde` | Preserves surrendered-agent faces through the allowed wrapper and drops ineffective multiplayer `setName` |
 | RPC target/JIP correction | `96f19a8` | Constrains spawn and team endpoints to their actual targets and retention requirements |
-| Drone RPC correction/current code HEAD | `9f61e06` | Splits request from apply and authenticates UAV lock ownership |
+| Drone RPC correction | `9f61e06` | Splits request from apply and authenticates UAV lock ownership |
+| Legacy dispatcher containment/current mission-code tip | `c1d40d1` | Blocks unused privileged selectors and command batching, constrains delete and curator requests, and authenticates Floatary action installation |
 
 The post-sync parity audit at `5c1ffb3` found no unclassified deployment delta. Only three documented exceptions remained:
 
@@ -42,9 +43,9 @@ The post-sync parity audit at `5c1ffb3` found no unclassified deployment delta. 
 - editor serialization noise in `mission.sqm` after retaining the semantic terminal class additions;
 - source-only `media/commissary/README.txt`, intentionally retained in Git and absent from the PBO.
 
-Accordingly, `5c1ffb3` is the exact-live source/behavior checkpoint. Payload comparison establishes its mission-source equivalence to frozen B subject to the documented exceptions; it does not by itself claim deterministic or byte-identical PBO reproduction. The mission-code tip at `9f61e06` intentionally differs from the frozen PBO only through the twelve post-reconstruction commits above. Eleven commits are corrective behavior/security changes; `7300403` is source-only whitespace cleanup. They must be reviewed as post-live changes, not mistaken for evidence copied from production.
+Accordingly, `5c1ffb3` is the exact-live source/behavior checkpoint. Payload comparison establishes its mission-source equivalence to frozen B subject to the documented exceptions; it does not by itself claim deterministic or byte-identical PBO reproduction. The mission-code tip at `c1d40d1` intentionally differs from the frozen PBO through the documented post-reconstruction commits above. Those commits must be reviewed as post-live changes, not mistaken for evidence copied from production.
 
-The final comparator at `9f61e06` records 1,268 repository mission files against 1,265 deployed files: 697 case+EOL-only, 313 case-only identical, 30 EOL-only, 204 identical, 16 case+text changed, five text changed, and three repository-only, with no deployment-only path. Of the 21 changed paths, `fn_curatorFunctions.sqf` remains whitespace-only and `mission.sqm` remains editor serialization noise; the semantic Ghost Hawk entries are exact. The three repository-only paths are source-only `media/commissary/README.txt` plus corrective `TGC/Functions/Channels/fn_serverSetChannelMasks.sqf` and `TGC/Functions/Drones/fn_serverLockDroneByUID.sqf`. Every other difference maps to the post-live commits above. The final evidence is retained in `420th-Arma3-PBO-sync-artifacts-20260901/audit-final/{inventory.csv,summary.json}`.
+The final comparator at `9f61e06` records 1,268 repository mission files against 1,265 deployed files: 697 case+EOL-only, 313 case-only identical, 30 EOL-only, 204 identical, 16 case+text changed, five text changed, and three repository-only, with no deployment-only path. Of the 21 changed paths, `fn_curatorFunctions.sqf` remains whitespace-only and `mission.sqm` remains editor serialization noise; the semantic Ghost Hawk entries are exact. The three repository-only paths are source-only `media/commissary/README.txt` plus corrective `TGC/Functions/Channels/fn_serverSetChannelMasks.sqf` and `TGC/Functions/Drones/fn_serverLockDroneByUID.sqf`. Every other difference maps to the post-live commits above. The final evidence is retained in `420th-Arma3-PBO-sync-artifacts-20260901/audit-final/{inventory.csv,summary.json}`. Commit `c1d40d1` intentionally postdates that comparator and changes three known SQF paths; rerun the comparator before release.
 
 Client Workshop enforcement remains gated on external `@Apex_cfg` release configuration. It must provide the exact Boolean `QS_missionConfig_clientWorkshopModEnforcementEnabled = true` and a non-empty `QS_missionConfig_allowedClientWorkshopIds` array of canonical decimal Workshop-ID strings (maximum 256 entries). Version and hash this non-secret configuration, verify it is loaded before client reports, and deploy it atomically with the PBO. Missing, empty, malformed, or oversized configuration now disables enforcement and logs the configuration error instead of mass-kicking clients. This remains a cooperative client-report policy, not an anti-cheat boundary.
 
@@ -87,6 +88,8 @@ The generic Cargo20 fallback to mass `5000` is not an active purpose-built deplo
 - `git diff --check origin/main...HEAD` passes.
 - An isolated local dedicated-server compile smoke loaded all 20 post-live SQF files: `20/20`, `ScriptError = 0`.
 - The smoke-test RPT is `%LOCALAPPDATA%\Temp\codex-420-sync-validation\profile\arma3server_x64_2026-09-01_19-32-07.rpt`, SHA-256 `14F81DF272DD147003C4F9D60831F845262DE0CD89D359D913B0B9E6059C8211`.
+- Containment commit `c1d40d1` was rechecked with `CfgConvert -test` and an expanded dedicated-server compile smoke covering 22 files, including both generic dispatchers and the Floatary receiver: `22/22`, `ScriptError = 0`.
+- The expanded smoke-test RPT is `%LOCALAPPDATA%\Temp\codex-420-sync-validation\profile\arma3server_x64_2026-09-01_21-35-52.rpt`, SHA-256 `8A2B60FB8BF6F154D912CE897B48B5F84C70121EE178D69DB5AEFDE6975D7599`.
 - The temporary test mission was removed from Arma `MPMissions` after validation.
 - An initial verified packing-mechanics build from the unfiltered `9f61e06` mission tree exposed that source-only `media/commissary/README.txt` would be included by a plain Git archive. That artifact was not promoted.
 - The filtered production-form candidate in `prod-pbo-9f61e06-01` pins commit `9f61e0666edde5544c50951bab996b6bde68cb77` and mission-tree object `33ea816ae64ffc907af617f0a45eb40f470f4f19`, excludes exactly that README, and contains 1,267 files. `CfgConvert` passes; BankRev reports no PBO header properties; its listed/extracted inventory and every payload hash match the filtered stage; and a second independent FileBank build is byte-identical. Final PBO SHA-256 is `FBD92C1A6FC5D892459B6F0AA9028E774C80B2C37F3C24D927898FD20C3DC084`; BankRev content SHA-1 is `096890AC180E5191D0F4288F53D30CB57FA304FC`.
@@ -456,7 +459,12 @@ Implemented boundary (original review title): `policy(admin): update debug-conso
 - Four additional UIDs in `description.ext`
 - `BIS_fnc_debugConsoleExec` entry in `code/config/security.hpp`
 
-Validate all four identities out of band. This is privileged access and must not be accepted merely because it was present in the PBO; validation is merge-blocking.
+Current disposition: all seven identities were checked on 2026-09-01, and the four deployment additions are accepted for explicit review in their isolated commit, `093fc82`. The reviewed values are retained here for auditability:
+
+- Pre-existing repository entries: `76561198000424164`, `76561198017084053`, `76561198123202265`
+- Four deployment additions: `76561198095745182`, `76561198380562677`, `76561198450616335`, `76561198179855306`
+
+Identity verification does not make this low privilege: reviewers should still approve the continuing operational need for every entry because debug-console access permits code execution.
 
 ### R30 — Assault Ghost Hawks at pilot terminals
 
@@ -479,7 +487,21 @@ This was implemented last in the exact-live series as `5c1ffb3`, after all ownin
 
 Proposed follow-up commit, not implemented: `diagnostics: add bounded cargo and server-stall telemetry`
 
-The reconciliation prerequisite is now implemented through `9f61e06`; this facility is still only a design. If approved, add it afterward as separate default-off, rate-limited commits. Cargo telemetry should record each load attempt/result, cargo and carrier class/config values, loaded parent, attachments/ropes, locality, server FPS, player count, and whether spawn-menu GC touched the crate. Freeze telemetry should provide a monotonic heartbeat and timed/count summaries around HC transfer, AO cleanup, logistics GC, dynamic simulation, projectile tracking, and other suspected bursts. Add narrow non-JIP RemoteExec declarations in the owning diagnostic commits and rerun the final static audit. Do not use an entity object as a diagnostic JIP key because R24 owns it.
+The reconciliation prerequisite and initial dispatcher containment are now implemented through `c1d40d1`; this facility is still only a design. If approved, add it afterward as separate default-off, rate-limited commits. Cargo telemetry should record each load attempt/result, cargo and carrier class/config values, loaded parent, attachments/ropes, locality, server FPS, player count, and whether spawn-menu GC touched the crate. Freeze telemetry should provide a monotonic heartbeat and timed/count summaries around HC transfer, AO cleanup, logistics GC, dynamic simulation, projectile tracking, and other suspected bursts. Add narrow non-JIP RemoteExec declarations in the owning diagnostic commits and rerun the final static audit. Do not use an entity object as a diagnostic JIP key because R24 owns it.
+
+### R33 — legacy dispatcher containment
+
+Implemented follow-up: `c1d40d1` (`fix(security): contain legacy remote execution paths`)
+
+- Blocks dormant selectors `-2` and `-1` from non-server origins.
+- Blocks disabled staff-cleanup selectors `53` and `54` from non-server senders.
+- Rejects case-17 delete requests from HC/unknown origins, removes its unused bulk shape for client requests, rejects direct player-object deletion, binds the request to a connected player sender, and applies the heavy-request rate budget.
+- Binds curator initialization case `27` to the actual sender object, UID, and owner ID.
+- Removes unused recursive command batching from `QS_fnc_remoteExecCmd`.
+- Accepts remotely installed Simple Floatary actions only from the server.
+- Emits only bounded metadata for blocked dormant/batch attempts; supplied payloads are not logged.
+
+Static call-site review found no active caller for the dormant/staff selectors or command batching, and every tracked case-17 and case-27 caller has the retained shape. This is containment, not complete remediation: active selectors and peer-targeted generic commands still require migration to narrow request/server-validate/apply endpoints. Retain both generic wrapper whitelist entries until their legitimate callers have been migrated and multiplayer-tested.
 
 ## Complete material-path index
 
@@ -573,14 +595,14 @@ Mixed files deliberately map to several groups because they must be split by hun
 
 Before this PR can be treated as deployable rather than evidentiary:
 
-1. Preserve the completed 69-path audit and final `audit-final` comparator as release evidence; rerun the comparator if the mission tree changes after `9f61e06`. A documentation-only commit does not invalidate the mission-payload comparison.
-2. Preserve the passing config-parse, diff-check, and 20/20 compile-smoke evidence above. The static RemoteExec inventory is complete; runtime-test the corrected staff-channel, HC-command, surrender-face, spawn/team, and drone-lock paths, plus representative server-origin omissions and JIP reconnect behavior.
+1. Preserve the completed 69-path audit and final `audit-final` comparator as release evidence; rerun it for mission-code tip `c1d40d1`. A documentation-only commit does not invalidate the mission-payload comparison.
+2. Preserve the passing config-parse, diff-check, and 22/22 compile-smoke evidence above. The static RemoteExec inventory is complete; runtime-test the corrected staff-channel, HC-command, surrender-face, spawn/team, drone-lock, curator, delete, command-wrapper, and Floatary paths, plus representative rejected requests, server-origin omissions, and JIP reconnect behavior.
 3. Runtime-test `677f8de` and the `2982ecc` mod validator. Keep Workshop enforcement disabled unless the versioned external `@Apex_cfg` enable flag and non-empty allowlist are present, validated, hashed, and deployed with the same release.
-4. Validate every one of the four added debug-console UIDs with the server owner through a private channel; this is a merge-blocking privileged-access decision. Explicitly review the pylon-policy and other gameplay/operations changes rather than approving them merely because they were deployed.
+4. The seven debug-console identities have been checked; explicitly review the four additions isolated in `093fc82` and their continuing operational need before merge. Explicitly review the pylon-policy and other gameplay/operations changes rather than approving them merely because they were deployed.
 5. Benchmark R12, R14, R18–R23 at low and high player/AI/HC load. Capture timings and counts, not only server FPS.
 6. Run the eight-preset staging matrix from the cargo investigation. Assert mass `2500` and two-crate admission without changing mass/capacity code; confirm GC never deletes in-use cargo.
-7. The combined diagnostics facility is still proposed and unimplemented. If approved, add it as separate default-off commits on top of `9f61e06` so cargo failures and freezes share one build ID/time base.
+7. The combined diagnostics facility is still proposed and unimplemented. If approved, add it as separate default-off commits on top of `c1d40d1` so cargo failures and freezes share one build ID/time base.
 8. Build from a clean Git-object staging tree, not a CRLF-mutated checkout, and apply the recorded source-only README exclusion before packing. Record source commit, package manifest/rule, external-config manifest hash, packer/tool version, PBO SHA-256, and normalized extracted-tree hash. Do not promote the verified interim build that included the README.
 9. Deploy PBO and external configuration together, retain the prior artifact for rollback, and verify the server advertises/logs the expected source commit before reopening untracked edits.
 
-The resulting PR should initially be draft. Commit `5c1ffb3` preserves exact deployment evidence; commits `5e06631` through `9f61e06`, individually listed above, are documented post-deployment changes. Exact deployment parity is evidence of what ran, not evidence that each deployed change is correct or approved.
+The resulting PR should initially be draft. Commit `5c1ffb3` preserves exact deployment evidence; commits `5e06631` through `c1d40d1`, individually listed above, are documented post-deployment changes. Exact deployment parity is evidence of what ran, not evidence that each deployed change is correct or approved.
