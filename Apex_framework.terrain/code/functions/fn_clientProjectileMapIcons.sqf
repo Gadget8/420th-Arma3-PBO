@@ -7,7 +7,11 @@ Description:
 	Soldier Tracker (fn_icons.sqf).
 ____________________________________________________________/*/
 
-if (isDedicated || {!hasInterface}) exitWith {};
+if (
+	isDedicated ||
+	{!hasInterface} ||
+	{(missionNamespace getVariable ['QS_missionConfig_projectileTrackingEnabled',FALSE]) isNotEqualTo TRUE}
+) exitWith {};
 
 waitUntil {
 	uiSleep 0.1;

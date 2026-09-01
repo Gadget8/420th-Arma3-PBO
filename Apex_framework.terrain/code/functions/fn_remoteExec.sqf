@@ -2421,19 +2421,21 @@ if (_case < 110) exitWith {
 	if (_case isEqualTo 103) then {
 		if (hasInterface) then {
 			params ['','_target','_ammo','_vehicle','_projectile',['_detectionRange',5000],['_warningRange',100]];
-			private _trackProjectile = {
-				params ['_variableName','_projectile'];
-				private _projectiles = (missionNamespace getVariable [_variableName,[]]) select {!isNull _x};
-				if (!isNull _projectile) then {
-					_projectiles pushBackUnique _projectile;
+			if ((missionNamespace getVariable ['QS_missionConfig_projectileTrackingEnabled',FALSE]) isEqualTo TRUE) then {
+				private _trackProjectile = {
+					params ['_variableName','_projectile'];
+					private _projectiles = (missionNamespace getVariable [_variableName,[]]) select {!isNull _x};
+					if (!isNull _projectile) then {
+						_projectiles pushBackUnique _projectile;
+					};
+					if ((count _projectiles) > 128) then {
+						_projectiles deleteRange [0,(count _projectiles) - 128];
+					};
+					missionNamespace setVariable [_variableName,_projectiles,FALSE];
 				};
-				if ((count _projectiles) > 128) then {
-					_projectiles deleteRange [0,(count _projectiles) - 128];
-				};
-				missionNamespace setVariable [_variableName,_projectiles,FALSE];
+				['QS_draw2D_projectiles',_projectile] call _trackProjectile;
+				['QS_draw3D_projectiles',_projectile] call _trackProjectile;
 			};
-			['QS_draw2D_projectiles',_projectile] call _trackProjectile;
-			['QS_draw3D_projectiles',_projectile] call _trackProjectile;
 			private _nearestSensorAsset = objNull;
 			private _shipExists = (!isNull (missionNamespace getVariable ['QS_destroyerObject',objNull])) || (!isNull (missionNamespace getVariable ['QS_carrierObject',objNull]));
 			private _v = objNull;

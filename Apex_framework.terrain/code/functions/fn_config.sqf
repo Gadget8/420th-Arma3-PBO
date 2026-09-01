@@ -511,6 +511,11 @@ private _weaponsList = configFile >> 'CfgWeapons';
 		((missionNamespace getVariable ['QS_missionConfig_enemyUAVDiagnosticsEnabled',FALSE]) isEqualTo TRUE),
 		FALSE
 	],
+	[
+		'QS_missionConfig_projectileTrackingEnabled',
+		((missionNamespace getVariable ['QS_missionConfig_projectileTrackingEnabled',FALSE]) isEqualTo TRUE),
+		TRUE
+	],
 	['QS_draw3D_projectiles',[],TRUE],
 	['QS_client_customDraw2D',[],TRUE],
 	['QS_client_customDraw3D',[],TRUE],
