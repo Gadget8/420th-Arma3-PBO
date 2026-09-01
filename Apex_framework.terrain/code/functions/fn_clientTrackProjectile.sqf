@@ -7,6 +7,7 @@ Description:
 	the complete tracking arrays. The arrays are kept small so a long barrage
 	cannot leave an ever-growing client-side workload behind.
 ____________________________________________________________/*/
+if (TRUE) exitWith {};
 
 params [
 	['_projectile',objNull,[objNull]],
