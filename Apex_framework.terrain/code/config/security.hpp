@@ -235,6 +235,7 @@ class CfgRemoteExec {
 		class TGC_fnc_addCuratorAddons {allowedTargets = 2;};
 		class TGC_fnc_forceSideMission {allowedTargets = 2;};
 		class TGC_fnc_manageMainAO {allowedTargets = 2;};
+		class TGC_fnc_manageWeather {allowedTargets = 2;};
 		class TGC_fnc_manageSideMissions {allowedTargets = 2;};
 		class TGC_fnc_lockDroneByUID {};
 		class TGC_fnc_setChannelMasks {};

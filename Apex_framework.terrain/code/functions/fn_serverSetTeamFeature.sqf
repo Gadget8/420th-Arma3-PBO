@@ -9,6 +9,27 @@ __________________________________________________/*/
 
 if (!isServer) exitWith {};
 
+private _authorized = !isRemoteExecuted || {remoteExecutedOwner isEqualTo 2};
+if (isRemoteExecuted && {remoteExecutedOwner > 2}) then {
+	private _requestOwner = remoteExecutedOwner;
+	private _requestingPlayer = objNull;
+	{
+		if ((owner _x) isEqualTo _requestOwner) exitWith {
+			_requestingPlayer = _x;
+		};
+	} forEach allPlayers;
+	if (
+		(!isNull _requestingPlayer) &&
+		{
+			(getPlayerUID _requestingPlayer) in
+			(['ALL'] call (missionNamespace getVariable ['QS_fnc_whitelist',{[]}]))
+		}
+	) then {
+		_authorized = TRUE;
+	};
+};
+if (!_authorized) exitWith {};
+
 params [
 	['_feature','',['']],
 	['_enabled',TRUE,[TRUE]]

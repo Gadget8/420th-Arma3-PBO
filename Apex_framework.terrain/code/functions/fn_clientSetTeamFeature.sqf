@@ -6,7 +6,7 @@ Description:
 	Apply the latest global team-map or name-tag feature state locally.
 __________________________________________________/*/
 
-if (!hasInterface) exitWith {};
+if ((!hasInterface) || {!isRemoteExecuted} || {remoteExecutedOwner isNotEqualTo 2}) exitWith {};
 
 params [
 	['_feature','',['']],
