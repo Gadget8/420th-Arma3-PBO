@@ -33,5 +33,5 @@ player addEventHandler ["WeaponAssembled", {
     params ["_unit", "_drone"];
     if (!unitIsUAV _drone) exitWith {};
     if (!isNil {_drone getVariable "TGC_drones_owner"}) exitWith {};
-    [_drone, getPlayerUID _unit] remoteExec ["TGC_fnc_lockDroneByUID"];
+    [_drone, getPlayerUID _unit] remoteExec ["TGC_fnc_serverLockDroneByUID", 2, false];
 }];

@@ -2,9 +2,7 @@
 Function: TGC_fnc_lockDroneByUID
 
 Description:
-    Lock a drone from the player to prevent connections to it.
-    If executed on server, this becomes persistent on JIP players.
-    Function should be remote executed on server and all clients.
+    Apply a server-authorized drone lock on a client.
 
 Parameters:
     Object drone:
@@ -17,9 +15,12 @@ Author:
     thegamecracks
 
 */
-params ["_drone", "_uid"];
+private _drone = _this param [0, objNull, [objNull]];
+private _uid = _this param [1, "", [""]];
 
-if (isServer) then {_drone setVariable ["TGC_drones_owner", _uid, true]};
+if (isRemoteExecuted && {remoteExecutedOwner isNotEqualTo 2}) exitWith {};
+if (isNull _drone || {!unitIsUAV _drone} || {(count _uid) > 64}) exitWith {};
+
 if (isNull player) exitWith {};
 
 private _locked = !(_uid in ["", getPlayerUID player]);

@@ -816,6 +816,7 @@ class CfgFunctions {
             file = "TGC\Functions\Drones";
             class initDroneHandlers { postInit = 1; };
             class lockDroneByUID {};
+            class serverLockDroneByUID {};
         };
         class Lasers {
             file = "TGC\Functions\Lasers";

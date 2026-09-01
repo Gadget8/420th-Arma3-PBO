@@ -35,5 +35,5 @@ if (unitIsUAV _vehicle) then {
 	{
 		_x setVariable ['QS_spawnMenu_spawnedBy',_ownerUID,TRUE];
 	} forEach (crew _vehicle);
-	[_vehicle,_ownerUID] remoteExec ['TGC_fnc_lockDroneByUID',0,FALSE];
+	[_vehicle,_ownerUID] call TGC_fnc_serverLockDroneByUID;
 };

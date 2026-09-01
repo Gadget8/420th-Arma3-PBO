@@ -257,7 +257,7 @@ _uavInitCodeGeneric = {
 	{
 		_x enableAIFeature ['LIGHTS',FALSE];
 	} forEach (units _grp);
-	[_uavEntity, getPlayerUID player] remoteExec ["TGC_fnc_lockDroneByUID"];
+	[_uavEntity, getPlayerUID player] remoteExec ["TGC_fnc_serverLockDroneByUID", 2, false];
 	_uavEntity setPilotLight FALSE;
 	_uavEntity setCollisionLight FALSE;
 	_uavEntity enableAIFeature ['LIGHTS',FALSE];
