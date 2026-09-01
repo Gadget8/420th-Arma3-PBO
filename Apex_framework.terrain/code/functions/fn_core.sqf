@@ -1066,8 +1066,8 @@ _QS_module_dynSim_checkDelay = _timeNow + _QS_module_dynSim_delay;
 {
 	(_x # 0) setDynamicSimulationDistance (_x # 1);
 } forEach [
-	['GROUP',1250],
-	['VEHICLE',1000],
+	['GROUP',4000],
+	['VEHICLE',4000],
 	['EMPTYVEHICLE',250],
 	['PROP',100]
 ];
