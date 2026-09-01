@@ -29,6 +29,19 @@ if (!isMissionProfileNamespaceLoaded) then {
 };
 missionNamespace setVariable ['QS_init_doorCloser',TRUE,FALSE];
 uiNamespace setVariable ['BIS_fnc_advHint_hintHandlers',TRUE];
+
+// Report non-official Steam Workshop mods to the server for allowlist checking.
+private _clientWorkshopMods = [];
+{
+	private _isDefault = _x param [2,FALSE,[FALSE]];
+	private _isOfficial = _x param [3,FALSE,[FALSE]];
+	private _workshopID = _x param [7,'',['']];
+	if ((!_isDefault) && {!_isOfficial}) then {
+		_clientWorkshopMods pushBackUnique [_workshopID,(_x param [0,'',['']])];
+	};
+} forEach getLoadedModsInfo;
+[_clientWorkshopMods] remoteExecCall ['QS_fnc_serverValidateClientMods',2,FALSE];
+
 if ((missionNamespace getVariable ['QS_missionConfig_baseLayout',0]) isEqualTo 0) then {
 	['BASE'] spawn (missionNamespace getVariable 'QS_fnc_localObjects');
 };

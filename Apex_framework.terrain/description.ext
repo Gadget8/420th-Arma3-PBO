@@ -200,6 +200,7 @@ class CfgFunctions {
 			class clientDiary {file = "code\functions\fn_clientDiary.sqf";};
 			class clientDisableUserInput {file = "code\functions\fn_clientDisableUserInput.sqf";};
 			class clientEarplugs {file = "code\functions\fn_clientEarplugs.sqf";};
+			class clientModKickWarning {file = "code\functions\fn_clientModKickWarning.sqf";};
 			class clientEventAnimChanged {file = "code\functions\fn_clientEventAnimChanged.sqf";};
 			class clientEventAnimDone {file = "code\functions\fn_clientEventAnimDone.sqf";};
 			class clientEventAnimStateChanged {file = "code\functions\fn_clientEventAnimStateChanged.sqf";};
@@ -672,6 +673,7 @@ class CfgFunctions {
 			class serverRestart {file = "code\functions\fn_serverRestart.sqf";};
 			class serverSetAISkill {file = "code\functions\fn_serverSetAISkill.sqf";};
 			class serverSetEntityFeatureType {file = "code\functions\fn_serverSetEntityFeatureType.sqf";};
+			class serverValidateClientMods {file = "code\functions\fn_serverValidateClientMods.sqf";};
 			class serverSetPlayerFace {file = "code\functions\fn_serverSetPlayerFace.sqf";};
 			class serverSetTeamFeature {file = "code\functions\fn_serverSetTeamFeature.sqf";};
 			class serverUnitConfigure {file = "code\functions\fn_serverUnitConfigure.sqf";};
