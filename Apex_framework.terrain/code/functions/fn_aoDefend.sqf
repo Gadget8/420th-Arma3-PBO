@@ -35,7 +35,7 @@ private [
 	'_v','_unitTypes','_unitType','_grp2','_unloadPos','_checkHeldInitialDelay','_checkHeldDelay','_checkGroupDelay',
 	'_QS_uavs','_QS_infantry','_QS_armor','_QS_groundTransport','_QS_flyBy','_startPos1','_startPos2','_endPos1',
 	'_endPos2','_playersInArea','_QS_flyByDelay','_QS_airSuperiority','_jetsToSpawn','_jetType','_jetArray',
-	'_jetInitialDelay','_QS_flyByHeight','_updatePlayers','_playerVehicles','_unit','_helicopters','_helicoptersToSpawn',
+	'_jetInitialDelay','_jetSpawnDelay','_jetTrackedCount','_QS_flyByHeight','_updatePlayers','_playerVehicles','_unit','_helicopters','_helicoptersToSpawn',
 	'_helicopterTypes','_helicopterType','_helicopterArray','_helicopterInitialDelay','_helicopter','_paratroopers',
 	'_paratroopersToSpawn','_paratrooperTypes','_paratrooperArray','_paratrooperInitialDelay','_paratrooper','_paratrooperType',
 	'_QS_flyByType','_QS_flyBySpeed','_QS_flyByAltitude','_allPlayersCount','_exitSuccess','_exitFail','_defendMessages',
@@ -239,23 +239,24 @@ _QS_airSuperiority = TRUE && (!(worldName in ['Stratis']));
 if (_allPlayersCount > 0) then {_jetsToSpawn = 0;};
 if (_allPlayersCount > 10) then {_jetsToSpawn = 0;};
 if (_allPlayersCount > 20) then {_jetsToSpawn = 1;};
-if (_allPlayersCount > 30) then {_jetsToSpawn = 2;};
-if (_allPlayersCount > 40) then {_jetsToSpawn = 2;};
-if (_allPlayersCount > 50) then {_jetsToSpawn = 3;};
-if (_allPlayersCount > 60) then {_jetsToSpawn = 4;};
+if (_allPlayersCount > 30) then {_jetsToSpawn = 1;};
+if (_allPlayersCount > 40) then {_jetsToSpawn = 1;};
+if (_allPlayersCount > 50) then {_jetsToSpawn = 2;};
+if (_allPlayersCount > 60) then {_jetsToSpawn = 2;};
 _jetType = selectRandomWeighted (['defend_jettypes_1'] call QS_data_listVehicles);
 _jetArray = [];
-_jetInitialDelay = time + (30 + (random 120));
+_jetInitialDelay = time + (120 + (random 180));
+_jetSpawnDelay = 0;
 _jet = objNull;
 _helicopters = TRUE;
 _helicoptersToSpawn = 1;
 if (_allPlayersCount > 0) then {_helicoptersToSpawn = 1;};
 if (_allPlayersCount > 10) then {_helicoptersToSpawn = 1;};
-if (_allPlayersCount > 20) then {_helicoptersToSpawn = 3;};
-if (_allPlayersCount > 30) then {_helicoptersToSpawn = 4;};
-if (_allPlayersCount > 40) then {_helicoptersToSpawn = 5;};
-if (_allPlayersCount > 50) then {_helicoptersToSpawn = 6;};
-if (_allPlayersCount > 60) then {_helicoptersToSpawn = 7;};
+if (_allPlayersCount > 20) then {_helicoptersToSpawn = 2;};
+if (_allPlayersCount > 30) then {_helicoptersToSpawn = 2;};
+if (_allPlayersCount > 40) then {_helicoptersToSpawn = 3;};
+if (_allPlayersCount > 50) then {_helicoptersToSpawn = 3;};
+if (_allPlayersCount > 60) then {_helicoptersToSpawn = 4;};
 if (_allPlayersCount > 20) then {
 	if (worldName in ['Tanoa','Enoch','Stratis']) then {
 		_helicopterTypes = ['defend_helitypes_1'] call QS_data_listVehicles;
@@ -315,9 +316,10 @@ _vParaToSpawn = 0;
 if (_allPlayersCount > 0) then {_vParaToSpawn = 0;};
 if (_allPlayersCount > 10) then {_vParaToSpawn = 2;};
 if (_allPlayersCount > 20) then {_vParaToSpawn = 2;};
-if (_allPlayersCount > 30) then {_vParaToSpawn = 4;};
-if (_allPlayersCount > 40) then {_vParaToSpawn = 6;};
-if (_allPlayersCount > 50) then {_vParaToSpawn = 8;};
+if (_allPlayersCount > 30) then {_vParaToSpawn = 3;};
+if (_allPlayersCount > 40) then {_vParaToSpawn = 4;};
+if (_allPlayersCount > 50) then {_vParaToSpawn = 6;};
+if (_allPlayersCount > 60) then {_vParaToSpawn = 8;};
 _QS_flyBy = FALSE;
 if ((random 1) > 0.033) then {
 	_QS_flyBy = TRUE;
@@ -1136,10 +1138,14 @@ for '_x' from 0 to 1 step 0 do {
 			if (_allPlayersCount > 30) then {_jetsToSpawn = 2;};
 			if (_allPlayersCount > 50) then {_jetsToSpawn = 3;};
 			if (_allPlayersCount > 60) then {_jetsToSpawn = 4;};
+			_jetTrackedCount = count _jetArray;
 			_jetArray = _jetArray select {(alive _x) && {canMove _x}};
-			if ((count _jetArray) < _jetsToSpawn) then {
+			if ((count _jetArray) < _jetTrackedCount) then {
+				_jetSpawnDelay = time + 60 + (random 60);
+			};
+			if (((count _jetArray) < _jetsToSpawn) && {_timeNow > _jetSpawnDelay}) then {
 				for '_x' from 0 to 49 step 1 do {
-					_spawnPos = _centerPos getPos [(4000 + (random 2000)),(random 360)];
+					_spawnPos = _centerPos getPos [(6000 + (random 2000)),(random 360)];
 					if ((_allPlayers inAreaArray [_spawnPos,1000,1000,0,FALSE]) isEqualTo []) exitWith {};
 				};
 				_jetType = selectRandomWeighted (['defend_jettypes_1'] call QS_data_listVehicles);
@@ -1169,8 +1175,8 @@ for '_x' from 0 to 1 step 0 do {
 				0 = _allArray pushBack _jet;
 				0 = _allArray pushBack (driver _jet);
 				_grp setCombatMode 'RED';
+				_jetSpawnDelay = time + 60 + (random 60);
 			};
-			_jetInitialDelay = time + 45 + (random 30);
 		};
 	};
 	if (_helicopters) then {
