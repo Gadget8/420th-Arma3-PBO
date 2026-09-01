@@ -628,8 +628,8 @@ for '_x' from 0 to 1 step 0 do {
 			_QS_buttonMedevac ctrlEnable FALSE;
 			_QS_buttonMedevac ctrlSetText (localize 'STR_QS_Menu_100');
 			_QS_buttonMedevac ctrlSetTooltip (localize 'STR_QS_Menu_101');
-			_QS_buttonMedevac ctrlRemoveAllEventHandlers 'OnButtonClick';
-			_QS_buttonMedevac ctrlRemoveAllEventHandlers 'OnButtonDown';
+			_QS_buttonMedevac ctrlRemoveAllEventHandlers 'ButtonClick';
+			_QS_buttonMedevac ctrlRemoveAllEventHandlers 'ButtonDown';
 			_QS_buttonAction = 'call (missionNamespace getVariable "QS_fnc_clientRequestMedevac")';
 			_QS_buttonCtrl = _QS_buttonMedevac;
 			_QS_buttonCtrl buttonSetAction _QS_buttonAction;
