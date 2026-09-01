@@ -220,7 +220,7 @@ class CfgRemoteExec {
 		class QS_fnc_clientMenuPrivateChannels {allowedTargets = 1;};
 		class QS_fnc_clientMenuPMC {allowedTargets = 1;};
 		class QS_fnc_clientModKickWarning {allowedTargets = 1; jip = 0;};
-		class QS_fnc_clientSetTeamFeature {allowedTargets = 1; jip = 1;};
+		class QS_fnc_clientSetTeamFeature {allowedTargets = 1; jip = 0;};
 		class QS_fnc_clientTrackProjectile {allowedTargets = 1;};
 		class QS_fnc_serverAIIntelDelta {allowedTargets = 2;};
 		class QS_fnc_serverGetDonatorSkins {allowedTargets = 2;};
@@ -228,10 +228,10 @@ class CfgRemoteExec {
 		class QS_fnc_serverPMC {allowedTargets = 2;};
 		class QS_fnc_serverSetEntityFeatureType {allowedTargets = 2; jip = 0;};
 		class QS_fnc_serverSetPlayerFace {allowedTargets = 2; jip = 0;};
-		class QS_fnc_serverSetTeamFeature {allowedTargets = 2;};
+		class QS_fnc_serverSetTeamFeature {allowedTargets = 2; jip = 0;};
 		class QS_fnc_serverValidateClientMods {allowedTargets = 2; jip = 0;};
 		class QS_fnc_simpleFloataryAddActions {allowedTargets = 1;};
-		class QS_fnc_spawnMenuJoinAI {allowedTargets = 0;};
+		class QS_fnc_spawnMenuJoinAI {allowedTargets = 1; jip = 0;};
 		class TGC_fnc_addCuratorAddons {allowedTargets = 2;};
 		class TGC_fnc_forceSideMission {allowedTargets = 2;};
 		class TGC_fnc_manageMainAO {allowedTargets = 2;};
@@ -243,7 +243,7 @@ class CfgRemoteExec {
 		class TGC_fnc_setFriendlyName {};
 		class genix_fnc_menuloadoutreceive {};
         class hatg_fnc_cooldown {allowedTargets = 0;};
-        class qs_fnc_spawnmenuserverspawn {allowedTargets = 0;jip = 1;};
+        class qs_fnc_spawnmenuserverspawn {allowedTargets = 2; jip = 0;};
         class BIS_fnc_debugConsoleExec { allowedTargets = 0; };
 	};
 };
