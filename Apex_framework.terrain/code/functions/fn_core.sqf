@@ -3826,6 +3826,22 @@ for '_x' from 0 to 1 step 0 do {
 										if (_QS_instructions isEqualTo 'CUSTOM') then {
 
 										};
+										if (_QS_instructions isEqualTo 'SPAWN_MENU_LOGISTICS') then {
+											if (!(_QS_obj getVariable ['QS_logistics_deployed',_false])) then {
+												private _spawnMenuBaseRadius = 1000;
+												private _spawnMenuPlayerRadius = if (
+													((_QS_objWorldPos distance2D (markerPos 'QS_marker_base_marker')) <= _spawnMenuBaseRadius)
+												) then {
+													50
+												} else {
+													2000
+												};
+												if ((_allPlayers inAreaArray [_QS_objWorldPos,_spawnMenuPlayerRadius,_spawnMenuPlayerRadius,0,_false]) isEqualTo []) then {
+													_QS_attemptRecycle = _true;
+													_QS_deleteThis = _true;
+												};
+											};
+										};
 										if (_QS_instructions isEqualTo 'UNHIDE_DISCREET') then {
 											if ((_allPlayers inAreaArray [_QS_objWorldPos,100,100,0,_false]) isEqualTo []) then {
 												_QS_obj hideObjectGlobal _false;
