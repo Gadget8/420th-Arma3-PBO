@@ -411,6 +411,7 @@ class CfgFunctions {
 			class clientServiceVehicle {file = "code\functions\fn_clientServiceVehicle.sqf";};
 			class clientApplyEntityState {file = "code\functions\fn_clientApplyEntityState.sqf";};
 			class clientSetUnitInsignia {file = "code\functions\fn_clientSetUnitInsignia.sqf";};
+			class clientSetTeamFeature {file = "code\functions\fn_clientSetTeamFeature.sqf";};
 			class clientSimulationManager {file = "code\functions\fn_clientSimulationManager.sqf";};
 			class clientVehicleEventCargoLoaded {file = "code\functions\fn_clientVehicleEventCargoLoaded.sqf";};
 			class clientVehicleEventCargoUnloaded {file = "code\functions\fn_clientVehicleEventCargoUnloaded.sqf";};
@@ -672,6 +673,7 @@ class CfgFunctions {
 			class serverSetAISkill {file = "code\functions\fn_serverSetAISkill.sqf";};
 			class serverSetEntityFeatureType {file = "code\functions\fn_serverSetEntityFeatureType.sqf";};
 			class serverSetPlayerFace {file = "code\functions\fn_serverSetPlayerFace.sqf";};
+			class serverSetTeamFeature {file = "code\functions\fn_serverSetTeamFeature.sqf";};
 			class serverUnitConfigure {file = "code\functions\fn_serverUnitConfigure.sqf";};
 			class setCollectible {file = "code\functions\fn_setCollectible.sqf";};
 			class setCruiseControl {file = "code\functions\fn_setCruiseControl.sqf";};
