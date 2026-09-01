@@ -36,6 +36,21 @@ if (!isServer) exitWith {
 
         diag_log format ["TGC_fnc_dbWhitelistInit: received client whitelist for %1 with roles %2", _uid, _roles];
         missionNamespace setVariable ["QS_RSS_refreshUI", true, false];
+
+        // Initial player setup has a bounded whitelist wait. If the database
+        // response arrives after it, reconcile channel permissions as soon as
+        // the channel system is ready instead of requiring a respawn.
+        if !(missionNamespace getVariable ["TGC_dbWhitelistChannelRefreshPending", false]) then {
+            missionNamespace setVariable ["TGC_dbWhitelistChannelRefreshPending", true, false];
+            0 spawn {
+                waitUntil {
+                    uiSleep 0.1;
+                    missionNamespace getVariable ["QS_client_channelAccessInitialized", false]
+                };
+                [] call TGC_fnc_refreshStaffChannelAccess;
+                missionNamespace setVariable ["TGC_dbWhitelistChannelRefreshPending", false, false];
+            };
+        };
     };
 
     0 spawn {

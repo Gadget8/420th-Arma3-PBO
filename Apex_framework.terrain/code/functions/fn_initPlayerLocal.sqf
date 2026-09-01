@@ -982,6 +982,8 @@ if (isNil {missionProfileNamespace getVariable 'QS_client_radioChannels_profile'
 	};
 };
 [4,10] call (missionNamespace getVariable 'QS_fnc_clientRadio');
+missionNamespace setVariable ['QS_client_channelAccessInitialized',TRUE,FALSE];
+[] call TGC_fnc_refreshStaffChannelAccess;
 [] spawn {
 	while {TRUE} do {
 		uiSleep 1;
