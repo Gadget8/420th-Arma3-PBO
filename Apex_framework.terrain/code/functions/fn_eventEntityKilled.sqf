@@ -53,8 +53,17 @@ if (_killed isKindOf 'Man') then {
 		};
 	};
 } else {
+	private _killedType = toLowerANSI (typeOf _killed);
+	// Parachutes inherit from Air, but destroying one must not create a secondary explosion.
+	private _isParachute =
+		(_killed isKindOf 'ParachuteBase') ||
+		{(_killedType in QS_core_classNames_steerablePs)} ||
+		{(_killedType in QS_core_classNames_vehicleParachutes)};
+	// getFuelCargo returns 0 once an object is dead, so inspect its configured capacity instead.
+	private _transportFuel = getNumber ((configOf _killed) >> 'transportFuel');
 	if (
-		((getFuelCargo _killed) > -1) &&
+		(!_isParachute) &&
+		(_transportFuel > 0) &&
 		((['LandVehicle','Air','Ship','Thing','ReammoBox_F'] findIf { _killed isKindOf _x }) isNotEqualTo -1)
 	) then {
 		([_killed,'SAFE'] call QS_fnc_inZone) params ['_inSafezone','_safezoneLevel','_safezoneActive'];
