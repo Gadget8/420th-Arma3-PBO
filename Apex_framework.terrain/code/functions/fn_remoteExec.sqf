@@ -663,7 +663,6 @@ if (_case < 30) exitWith {
 				_unitVest = vest _unit;
 				_unitHeadgear = headgear _unit;
 				_unitFace = face _unit;
-				_name = name _unit;
 				private _isPrisoner = _unit getVariable ['QS_unit_isPrisoner',FALSE];
 				_agent = createAgent [_unitType,[0,0,0],[],0,'NONE'];
 				_agent enableAIFeature ['ALL',FALSE];
@@ -679,8 +678,7 @@ if (_case < 30) exitWith {
 				[_agent,'amovpercmstpssurwnondnon'] remoteExecCall ['switchMove',0,FALSE];
 				_agent setUnitPos 'Up';
 				_agent setDir _unitDir;
-				[_agent,_unitFace] remoteExec ['setFace',-2,FALSE];
-				[_agent,_name] remoteExec ['setName',-2,FALSE];
+				['setFace',_agent,_unitFace] remoteExec ['QS_fnc_remoteExecCmd',-2,FALSE];
 				_agent forceAddUniform _unitUniform;
 				_agent addHeadgear _unitHeadgear;
 				if (_isCmdr) then {
