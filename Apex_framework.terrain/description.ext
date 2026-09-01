@@ -409,6 +409,7 @@ class CfgFunctions {
 			class clientRequestMedevac {file = "code\functions\fn_clientRequestMedevac.sqf";};
 			class clientRespawnPosition {file = "code\functions\fn_clientRespawnPosition.sqf";};
 			class clientServiceVehicle {file = "code\functions\fn_clientServiceVehicle.sqf";};
+			class clientApplyEntityState {file = "code\functions\fn_clientApplyEntityState.sqf";};
 			class clientSetUnitInsignia {file = "code\functions\fn_clientSetUnitInsignia.sqf";};
 			class clientSimulationManager {file = "code\functions\fn_clientSimulationManager.sqf";};
 			class clientVehicleEventCargoLoaded {file = "code\functions\fn_clientVehicleEventCargoLoaded.sqf";};
@@ -663,11 +664,14 @@ class CfgFunctions {
 			class serverEventHandler {file = "code\functions\fn_serverEventHandler.sqf";};
 			class serverGetDonatorSkins {file = "code\functions\fn_serverGetDonatorSkins.sqf";};
 			class serverPMC {file = "code\functions\fn_serverPMC.sqf";};
+			class serverPublishEntityState {file = "code\functions\fn_serverPublishEntityState.sqf";};
 			class serverPrivateChannels {file = "code\functions\fn_serverPrivateChannels.sqf";};
 			class serverObjectsMapper {file = "code\functions\fn_serverObjectsMapper.sqf";};
 			class serverObjectsRecycler {file = "code\functions\fn_serverObjectsRecycler.sqf";};
 			class serverRestart {file = "code\functions\fn_serverRestart.sqf";};
 			class serverSetAISkill {file = "code\functions\fn_serverSetAISkill.sqf";};
+			class serverSetEntityFeatureType {file = "code\functions\fn_serverSetEntityFeatureType.sqf";};
+			class serverSetPlayerFace {file = "code\functions\fn_serverSetPlayerFace.sqf";};
 			class serverUnitConfigure {file = "code\functions\fn_serverUnitConfigure.sqf";};
 			class setCollectible {file = "code\functions\fn_setCollectible.sqf";};
 			class setCruiseControl {file = "code\functions\fn_setCruiseControl.sqf";};

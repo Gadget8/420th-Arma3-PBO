@@ -145,7 +145,7 @@ _jetPilot addEventHandler [
 		{call (missionNamespace getVariable 'QS_fnc_AIXMissileCountermeasure')}
 	]
 ];
-['setFeatureType',_jetActual,2] remoteExec ['QS_fnc_remoteExecCmd',-2,_jetActual];
+[_jetActual,2] remoteExecCall ['QS_fnc_serverSetEntityFeatureType',2,FALSE];
 _jetPilot assignAsDriver _jetActual;
 _jetPilot moveInDriver _jetActual;
 _jetPilot enableStamina FALSE;

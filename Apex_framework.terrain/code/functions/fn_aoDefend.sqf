@@ -464,7 +464,7 @@ for '_x' from 0 to 1 step 0 do {
 					clearItemCargoGlobal _uav;
 					clearBackpackCargoGlobal _uav;
 					_uav setVariable ['QS_uav_protected',TRUE,FALSE];
-					['setFeatureType',_uav,2] remoteExec ['QS_fnc_remoteExecCmd',-2,_uav];
+					[_uav,2] remoteExecCall ['QS_fnc_serverSetEntityFeatureType',2,FALSE];
 					0 = _uavArray pushBack _uav;
 					0 = _allArray pushBack _uav;
 					{
@@ -1165,7 +1165,7 @@ for '_x' from 0 to 1 step 0 do {
 				_grp enableAttack TRUE;
 				_grp lockWP TRUE;
 				_grp addVehicle _jet;
-				['setFeatureType',_jet,2] remoteExec ['QS_fnc_remoteExecCmd',-2,_jet];
+				[_jet,2] remoteExecCall ['QS_fnc_serverSetEntityFeatureType',2,FALSE];
 				_jet setVehicleReportRemoteTargets TRUE;
 				_jet setVehicleReceiveRemoteTargets TRUE;
 				_jet setVehicleRadar 1;
@@ -1189,7 +1189,7 @@ for '_x' from 0 to 1 step 0 do {
 				_helicopterType = selectRandom _helicopterTypes;
 				_helicopter = createVehicle [QS_core_vehicles_map getOrDefault [toLowerANSI _helicopterType,_helicopterType],_spawnPos,[],0,'FLY'];
 				[_helicopter,2,[]] call _fn_vehicleLoadouts;
-				['setFeatureType',_helicopter,2] remoteExec ['QS_fnc_remoteExecCmd',-2,_helicopter];
+				[_helicopter,2] remoteExecCall ['QS_fnc_serverSetEntityFeatureType',2,FALSE];
 				_allArray pushBack _helicopter;
 				_helicopterArray pushBack _helicopter;
 				_grp = createVehicleCrew _helicopter;
