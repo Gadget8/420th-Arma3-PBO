@@ -156,6 +156,7 @@ if (_clientToServer) then {
 		};
 	};
 };
+if (QS_diag_rpcLog) then {[_case,_rxID,_isRxJ,(!_rejectRequest),_rejectReason] call QS_fnc_diagRpc;};
 if (_rejectRequest) exitWith {};
 if (_case < 10) exitWith {
 	if (_case isEqualTo -2) then {

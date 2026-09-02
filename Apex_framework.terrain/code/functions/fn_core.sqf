@@ -1368,6 +1368,7 @@ _fn_eventAttach = missionNamespace getVariable 'QS_fnc_eventAttach';
 
 /*/============================================================================= LOOP/*/
 for '_x' from 0 to 1 step 0 do {
+	if (QS_diag_loopTiming) then {['core.main'] call QS_fnc_diagLoop;};
 	_timeNow = time;
 	_QS_diagTickTimeNow = diag_tickTime;
 	if (_QS_diagTickTimeNow > _miscDelay5) then {
@@ -3226,6 +3227,7 @@ for '_x' from 0 to 1 step 0 do {
 	/*/ Vehicle Manager /*/
 
 	if (_timeNow > _vRespawn_checkDelay) then {
+		if (QS_diag_loopTiming) then {['core.vehicleMonitor'] call QS_fnc_diagLoop;};
 		if ((serverNamespace getVariable 'QS_v_Monitor') isNotEqualTo []) then {
 			if (_trigger_delete_fobVehicles) then {
 				_trigger_delete_fobVehicles = _false;
@@ -3761,6 +3763,7 @@ for '_x' from 0 to 1 step 0 do {
 			} forEach (serverNamespace getVariable 'QS_v_Monitor');
 			serverNamespace setVariable ['QS_v_Monitor',((serverNamespace getVariable 'QS_v_Monitor') select {(_x isEqualType [])})];
 		};
+		if (QS_diag_loopTiming) then {['core.vehicleMonitor',(count (serverNamespace getVariable ['QS_v_Monitor',[]]))] call QS_fnc_diagLoop;};
 		_vRespawn_checkDelay = time + _vRespawn_delay;
 	};
 	if (_timeNow > _QS_cleanup_checkDelay) then {
@@ -3845,6 +3848,7 @@ for '_x' from 0 to 1 step 0 do {
 			};
 			if ((missionNamespace getVariable 'QS_garbageCollector') isNotEqualTo []) then {
 				missionNamespace setVariable ['QS_collectingGarbage',_true,_false];
+				if (QS_diag_loopTiming) then {['core.garbage'] call QS_fnc_diagLoop;};
 				_QS_garbageCollector = [];
 				{
 					_QS_deleteThis = _false;
@@ -4005,6 +4009,7 @@ for '_x' from 0 to 1 step 0 do {
 						(missionNamespace getVariable 'QS_garbageCollector') deleteAt _forEachIndex;
 					};
 				} forEach (missionNamespace getVariable 'QS_garbageCollector');
+				if (QS_diag_loopTiming) then {['core.garbage',(count (missionNamespace getVariable ['QS_garbageCollector',[]]))] call QS_fnc_diagLoop;};
 				missionNamespace setVariable ['QS_collectingGarbage',_false,_false];
 			};
 			{
@@ -5766,6 +5771,7 @@ for '_x' from 0 to 1 step 0 do {
 			_QS_module_restart_checkDelay = _timeNow + _QS_module_restart_delay;
 		};
 	};
+	if (QS_diag_loopTiming) then {['core.main',(count allUnits)] call QS_fnc_diagLoop;};
 	sleep 3;
 };
 diag_log format ['* %1 ***** QS ***** DEBUG ***** MISSION ENGINE TERMINATED *****',diag_tickTime];

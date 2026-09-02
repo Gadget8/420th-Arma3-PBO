@@ -109,6 +109,7 @@ if (_clientToServer && {!_rejectRequest} && {_type isEqualType []}) then {
 };
 
 if (_rejectRequest) exitWith {
+	if (QS_diag_rpcLog) then {[_type,_rxID,_isRxJ,FALSE,_rejectReason] call QS_fnc_diagRpc;};
 	if (_clientToServer) then {
 		private _rateMap = missionNamespace getVariable ['QS_remoteExecCmd_rateMap',createHashMap];
 		private _rateKey = str _rxID;
@@ -173,6 +174,7 @@ if (_clientToServer && {_type in ['setOwner','setGroupOwner','hideObjectGlobal']
 		};
 	};
 };
+if (QS_diag_rpcLog) then {[_type,_rxID,_isRxJ,(!_rejectRequest),_rejectReason] call QS_fnc_diagRpc;};
 if (_rejectRequest) exitWith {
 	private _rateMap = missionNamespace getVariable ['QS_remoteExecCmd_rateMap',createHashMap];
 	private _rateKey = str _rxID;

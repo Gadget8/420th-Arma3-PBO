@@ -139,6 +139,7 @@ if (_type isEqualTo 'WORLD') then {
 	_max = worldSize - (_inset * 2);
 	for '_x' from 0 to _attempts step _step do {
 		if (diag_tickTime > _timeout) exitWith {
+			if (QS_diag_safePos) then {[_timeout,_forceFind,(if (isNil '_fnc_scriptNameParent') then {'unknown'} else {_fnc_scriptNameParent})] call QS_fnc_diagSafePos;};
 			diag_log format ['***** DEBUG ***** SAFE POS FAILURE * %1 * %2 * %3 * %4 * %5 * %6 * %7 * %8 * %9',_type,_centerPos,_radius,_whitelist,_isFlatEmpty,_blacklistEnabled,_selectBestPlaces,_findEmptyPosition,_forceFind];
 			_return = getArray (configFile >> 'CfgWorlds' >> worldName >> 'safePositionAnchor');
 		};
@@ -212,6 +213,7 @@ if (_type isEqualTo 'WORLD') then {
 	if (_type isEqualTo 'RADIUS') then {
 		for '_x' from 0 to _attempts step _step do {
 			if (diag_tickTime > _timeout) exitWith {
+				if (QS_diag_safePos) then {[_timeout,_forceFind,(if (isNil '_fnc_scriptNameParent') then {'unknown'} else {_fnc_scriptNameParent})] call QS_fnc_diagSafePos;};
 				diag_log format ['***** DEBUG ***** SAFE POS FAILURE * %1 * %2 * %3 * %4 * %5 * %6 * %7 * %8 * %9',_type,_centerPos,_radius,_whitelist,_isFlatEmpty,_blacklistEnabled,_selectBestPlaces,_findEmptyPosition,_forceFind];
 				_return = getArray (configFile >> 'CfgWorlds' >> worldName >> 'safePositionAnchor');
 			};

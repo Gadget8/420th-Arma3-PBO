@@ -698,6 +698,7 @@ _fn_aoUrbanSpawn = missionNamespace getVariable 'QS_fnc_aoUrbanSpawn';
 //comment 'Loop';
 for '_x' from 0 to 1 step 0 do {
 	uiSleep (random [2.5,3,3.5]);
+	if (QS_diag_loopTiming) then {['ai.main'] call QS_fnc_diagLoop;};
 	_QS_uiTime = diag_tickTime;
 	_QS_time = time;
 	_QS_serverTime = serverTime;
@@ -2469,4 +2470,5 @@ for '_x' from 0 to 1 step 0 do {
 			_QS_module_scripts_checkDelay = _QS_uiTime + _QS_module_scripts_delay;
 		};
 	};
+	if (QS_diag_loopTiming) then {['ai.main',(count allUnits)] call QS_fnc_diagLoop;};
 };
