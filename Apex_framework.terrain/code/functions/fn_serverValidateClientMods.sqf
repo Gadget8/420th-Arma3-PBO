@@ -3,8 +3,8 @@ File: fn_serverValidateClientMods.sqf
 
 Description:
 
-	Kick clients that report a Steam Workshop mod which is not in the server
-	allowlist configured in @Apex_cfg\parameters.sqf.
+	Kick clients that report a non-official mod whose Workshop ID is not
+	approved and whose full hash is not approved in @Apex_cfg\parameters.sqf.
 __________________________________________________*/
 
 if ((!isServer) || {!isRemoteExecuted}) exitWith {};
@@ -14,14 +14,18 @@ if (_clientOwner <= 2) exitWith {};
 
 params [['_clientWorkshopMods',[],[[]]]];
 private _allowedWorkshopIDs = missionNamespace getVariable ['QS_missionConfig_allowedClientWorkshopIds',[]];
+private _allowedModHashes = missionNamespace getVariable ['QS_missionConfig_allowedClientModHashes',[]];
 
 private _disallowedMods = [];
 {
 	if ((_x isEqualType []) && {(count _x) >= 2}) then {
 		private _workshopID = _x param [0,'',['']];
 		private _modName = _x param [1,'',['']];
-		if ((_workshopID in ['','0']) || {!(_workshopID in _allowedWorkshopIDs)}) then {
-			_disallowedMods pushBack [_workshopID,_modName];
+		private _modHash = _x param [2,'',['']];
+		private _workshopAllowed = (_workshopID isNotEqualTo '') && {_workshopID isNotEqualTo '0'} && {_workshopID in _allowedWorkshopIDs};
+		private _hashAllowed = (_modHash isNotEqualTo '') && {_modHash in _allowedModHashes};
+		if ((!_workshopAllowed) && {!_hashAllowed}) then {
+			_disallowedMods pushBack [_workshopID,_modName,_modHash];
 		};
 	};
 } forEach _clientWorkshopMods;
