@@ -3,8 +3,8 @@ File: fn_serverValidateClientMods.sqf
 
 Description:
 
-	Validate a client's reported non-official Steam Workshop mods against the
-	server allowlist configured in @Apex_cfg\parameters.sqf.
+	Validate a client's reported non-official mods against the server's
+	Workshop-ID and full-hash allowlists configured in @Apex_cfg\parameters.sqf.
 
 	This is a cooperative-client policy check, not an anti-cheat boundary:
 	clients can suppress or falsify self-reported data.
@@ -39,23 +39,43 @@ if (_clientUID isEqualTo '') exitWith {};
 if (_clientPlayer getVariable ['QS_clientWorkshopModReportHandled',FALSE]) exitWith {};
 _clientPlayer setVariable ['QS_clientWorkshopModReportHandled',TRUE,FALSE];
 
-// Missing, empty, oversized, or malformed configuration disables enforcement.
-// An empty allowlist must never accidentally mean "kick every modded client".
+// Missing, collectively empty, oversized, or malformed configuration disables
+// enforcement. Empty individual lists are valid so either approval mechanism
+// can be used by itself.
 private _allowedWorkshopIDs = missionNamespace getVariable [
 	'QS_missionConfig_allowedClientWorkshopIds',
 	objNull
 ];
+private _allowedModHashes = missionNamespace getVariable [
+	'QS_missionConfig_allowedClientModHashes',
+	objNull
+];
+private _emptyPayloadSHA1 = 'da39a3ee5e6b4b0d3255bfef95601890afd80709';
 
-private _allowlistInvalid = !(_allowedWorkshopIDs isEqualType []);
+private _allowlistInvalid =
+	!(_allowedWorkshopIDs isEqualType []) ||
+	{!(_allowedModHashes isEqualType [])};
 if (!_allowlistInvalid) then {
 	_allowlistInvalid =
-		((count _allowedWorkshopIDs) isEqualTo 0) ||
+		(
+			((count _allowedWorkshopIDs) isEqualTo 0) &&
+			{(count _allowedModHashes) isEqualTo 0}
+		) ||
 		{(count _allowedWorkshopIDs) > 256} ||
+		{(count _allowedModHashes) > 256} ||
 		{
 			(_allowedWorkshopIDs findIf {
 				!(_x isEqualType '') ||
 				{(count _x) > 20} ||
 				{!(_x regexMatch '^[1-9][0-9]{0,19}$')}
+			}) isNotEqualTo -1
+		} ||
+		{
+			(_allowedModHashes findIf {
+				!(_x isEqualType '') ||
+				{(count _x) isNotEqualTo 40} ||
+				{!((toLowerANSI _x) regexMatch '^[0-9a-f]{40}$')} ||
+				{(toLowerANSI _x) isEqualTo _emptyPayloadSHA1}
 			}) isNotEqualTo -1
 		};
 };
@@ -74,13 +94,16 @@ if (_allowlistInvalid) exitWith {
 		];
 		diag_log (
 			'***** CLIENT MOD POLICY DISABLED ***** ' +
-			'QS_missionConfig_allowedClientWorkshopIds must be a non-empty ' +
-			'array of canonical decimal Workshop-ID strings *****'
+			'Workshop-ID and mod-hash allowlists must be arrays of at most ' +
+			'256 canonical values each, with at least one approved value; ' +
+			'the empty-payload SHA-1 must not be allowlisted *****'
 		);
 	};
 };
 
-// Expected RemoteExec argument shape: [ [ [itemID,modName], ... ] ].
+private _normalizedAllowedModHashes = _allowedModHashes apply {toLowerANSI _x};
+
+// Expected RemoteExec argument shape: [ [ [itemID,modName,fullHash], ... ] ].
 if !(_this isEqualType []) exitWith {
 	diag_log format [
 		'***** CLIENT MOD REPORT REJECTED ***** owner %1 * malformed arguments *****',
@@ -115,11 +138,13 @@ if (_reportCount > 128) exitWith {
 
 private _invalidEntryIndex = _clientWorkshopMods findIf {
 	!(_x isEqualType []) ||
-	{(count _x) isNotEqualTo 2} ||
+	{(count _x) isNotEqualTo 3} ||
 	{!((_x # 0) isEqualType '')} ||
 	{!((_x # 1) isEqualType '')} ||
+	{!((_x # 2) isEqualType '')} ||
 	{(count (_x # 0)) > 20} ||
-	{(count (_x # 1)) > 256}
+	{(count (_x # 1)) > 256} ||
+	{(count (_x # 2)) > 40}
 };
 
 if (_invalidEntryIndex isNotEqualTo -1) exitWith {
@@ -132,12 +157,23 @@ if (_invalidEntryIndex isNotEqualTo -1) exitWith {
 
 private _disallowedMods = [];
 {
-	_x params ['_workshopID','_modName'];
+	_x params ['_workshopID','_modName','_modHash'];
 	private _isCanonicalWorkshopID = _workshopID regexMatch '^[1-9][0-9]{0,19}$';
+	private _normalizedModHash = toLowerANSI _modHash;
+	private _isCanonicalModHash =
+		((count _normalizedModHash) isEqualTo 40) &&
+		{_normalizedModHash regexMatch '^[0-9a-f]{40}$'} &&
+		{_normalizedModHash isNotEqualTo _emptyPayloadSHA1};
+	private _workshopAllowed =
+		_isCanonicalWorkshopID &&
+		{_workshopID in _allowedWorkshopIDs};
+	private _hashAllowed =
+		_isCanonicalModHash &&
+		{_normalizedModHash in _normalizedAllowedModHashes};
 
 	if (
-		(!_isCanonicalWorkshopID) ||
-		{!(_workshopID in _allowedWorkshopIDs)}
+		(!_workshopAllowed) &&
+		{!_hashAllowed}
 	) then {
 		private _safeModName = toString (
 			(toArray (_modName select [0,64])) select {
@@ -148,8 +184,13 @@ private _disallowedMods = [];
 			}
 		);
 		private _safeWorkshopID = ['invalid-id',_workshopID] select _isCanonicalWorkshopID;
+		private _safeModHash = if (_modHash isEqualTo '') then {
+			'no-hash'
+		} else {
+			['invalid-hash',_normalizedModHash] select _isCanonicalModHash
+		};
 
-		_disallowedMods pushBackUnique [_safeWorkshopID,_safeModName];
+		_disallowedMods pushBackUnique [_safeWorkshopID,_safeModName,_safeModHash];
 	};
 } forEach _clientWorkshopMods;
 
