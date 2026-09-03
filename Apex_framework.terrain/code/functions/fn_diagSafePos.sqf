@@ -24,7 +24,7 @@ Description:
 	'unknown'.
 _____________________________________________________________________/*/
 
-if (!(missionNamespace getVariable ['QS_diag_safePos',FALSE])) exitWith {};
+if (!(localNamespace getVariable ['QS_diag_safePos',FALSE])) exitWith {};
 params [['_timeout',0,[0]],['_forceFind',FALSE,[FALSE]],['_caller','unknown',['']]];
 if (_caller isEqualTo '') then {_caller = 'unknown';};
 diag_log format [

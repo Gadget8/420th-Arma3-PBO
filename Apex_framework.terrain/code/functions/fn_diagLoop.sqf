@@ -22,16 +22,16 @@ Description:
 	matching open reports ms=-1.
 _____________________________________________________________________/*/
 
-if (!(missionNamespace getVariable ['QS_diag_loopTiming',FALSE])) exitWith {};
+if (!(localNamespace getVariable ['QS_diag_loopTiming',FALSE])) exitWith {};
 params [['_name','',['']],'_items'];
 if (_name isEqualTo '') exitWith {};
-private _state = missionNamespace getVariable ['QS_diag_loopState',createHashMap];
+private _state = localNamespace getVariable ['QS_diag_loopState',createHashMap];
 if (isNil '_items') exitWith {
 	private _row = _state getOrDefault [_name,[0,0]];
 	_row set [0,((_row # 0) + 1)];
 	_row set [1,diag_tickTime];
 	_state set [_name,_row];
-	missionNamespace setVariable ['QS_diag_loopState',_state,FALSE];
+	localNamespace setVariable ['QS_diag_loopState',_state];
 };
 private _row = _state getOrDefault [_name,[0,-1]];
 private _elapsed = -1;

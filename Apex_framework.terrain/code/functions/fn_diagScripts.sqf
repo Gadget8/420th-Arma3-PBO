@@ -8,8 +8,8 @@ Description:
 
 	Instrument 5, active-script histogram.  Every 60 seconds, group
 	diag_activeSQFScripts by script name and write the twenty largest groups
-	on one line.  Started by fn_diag.sqf only when
-	QS_missionConfig_diagScriptHistogram is exactly TRUE.
+	on one line.  Runs on the server and each configured HC when the local,
+	server-derived script-histogram gate is TRUE.
 
 	[DIAG SCRIPTS] total=<n> distinct=<n> top=[<name>=<count>, ...]
 
@@ -18,10 +18,10 @@ Description:
 _____________________________________________________________________/*/
 
 scriptName 'QS diag script histogram';
-if (!isServer) exitWith {};
+if (hasInterface) exitWith {};
 for '_i' from 0 to 1 step 0 do {
 	uiSleep 60;
-	if (!(missionNamespace getVariable ['QS_diag_scriptHistogram',FALSE])) exitWith {};
+	if (!(localNamespace getVariable ['QS_diag_scriptHistogram',FALSE])) exitWith {};
 	private _active = diag_activeSQFScripts;
 	private _counts = createHashMap;
 	{

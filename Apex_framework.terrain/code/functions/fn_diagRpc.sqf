@@ -23,16 +23,16 @@ Description:
 	the limiter itself free of a per-call write.
 _____________________________________________________________________/*/
 
-if (!(missionNamespace getVariable ['QS_diag_rpcLog',FALSE])) exitWith {};
+if (!(localNamespace getVariable ['QS_diag_rpcLog',FALSE])) exitWith {};
 params [['_case',''],['_owner',0,[0]],['_jip',FALSE,[FALSE]],['_accept',FALSE,[FALSE]],['_reason','',['']]];
-private _state = missionNamespace getVariable ['QS_diag_rpcState',[0,0]];
+private _state = localNamespace getVariable ['QS_diag_rpcState',[0,0]];
 private _now = diag_tickTime;
 if ((_now - (_state # 0)) >= 1) then {
 	_state set [0,_now];
 	_state set [1,0];
 };
 _state set [1,((_state # 1) + 1)];
-missionNamespace setVariable ['QS_diag_rpcState',_state,FALSE];
+localNamespace setVariable ['QS_diag_rpcState',_state];
 if ((_state # 1) > 200) exitWith {};
 diag_log format [
 	'[DIAG RPC] case=%1 owner=%2 jip=%3 %4 reason=%5',

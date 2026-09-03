@@ -156,7 +156,7 @@ if (_clientToServer) then {
 		};
 	};
 };
-if (QS_diag_rpcLog) then {[_case,_rxID,_isRxJ,(!_rejectRequest),_rejectReason] call QS_fnc_diagRpc;};
+if (localNamespace getVariable ['QS_diag_rpcLog',FALSE]) then {[_case,_rxID,_isRxJ,(!_rejectRequest),_rejectReason] call QS_fnc_diagRpc;};
 if (_rejectRequest) exitWith {};
 if (_case < 10) exitWith {
 	if (_case isEqualTo -2) then {
@@ -2359,11 +2359,23 @@ if (_case < 100) exitWith {
 		};
 	};
 	if (_case isEqualTo 98) then {
+		if (!isDedicated || {_isRxJ} || {(count _this) isNotEqualTo 2}) exitWith {};
 		private _claimedOwner = _this param [1,-1,[0]];
+		if (_claimedOwner <= 2) exitWith {};
 		private _headlessOwners = (entities 'HeadlessClient_F') apply {owner _x};
 		_headlessOwners = _headlessOwners arrayIntersect _headlessOwners;
 		if !(_claimedOwner in _headlessOwners) exitWith {};
-		if (_clientToServer && {_rxID isNotEqualTo _claimedOwner}) exitWith {};
+		// HC-originated remoteExec currently reports isRemoteExecuted FALSE and owner 0.
+		// Also accept an exact sender/claim match if the engine corrects that behavior.
+		private _hcSenderContext = (
+			((!_isRx) && {_rxID isEqualTo 0}) ||
+			{_isRx && {_rxID isEqualTo _claimedOwner}}
+		);
+		if (!_hcSenderContext) exitWith {};
+		private _diagHCConfig = serverNamespace getVariable ['QS_diag_hcConfig',[]];
+		if (_diagHCConfig isNotEqualTo []) then {
+			_diagHCConfig remoteExecCall ['QS_fnc_diagConfigureHC',_claimedOwner,FALSE];
+		};
 		private _grp = grpNull;
 		private _var = '';
 		private _syncedGroups = 0;

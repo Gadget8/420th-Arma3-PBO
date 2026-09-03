@@ -470,11 +470,13 @@ class CfgFunctions {
 			class destroyer {file = "code\functions\fn_destroyer.sqf";};
 			class destroyerVehicleInit {file = "code\functions\fn_destroyerVehicleInit.sqf";};
 			class diag {file = "code\functions\fn_diag.sqf";preInit = 1;};
+			class diagConfigureHC {file = "code\functions\fn_diagConfigureHC.sqf";};
 			class diagHeartbeat {file = "code\functions\fn_diagHeartbeat.sqf";};
 			class diagLoop {file = "code\functions\fn_diagLoop.sqf";};
 			class diagRpc {file = "code\functions\fn_diagRpc.sqf";};
 			class diagSafePos {file = "code\functions\fn_diagSafePos.sqf";};
 			class diagScripts {file = "code\functions\fn_diagScripts.sqf";};
+			class diagStart {file = "code\functions\fn_diagStart.sqf";};
 			class diagState {file = "code\functions\fn_diagState.sqf";};
 			class downgradeVehicleWeapons {file = "code\functions\fn_downgradeVehicleWeapons.sqf";};
 			class dynamicTasks {file = "code\functions\fn_dynamicTasks.sqf";};

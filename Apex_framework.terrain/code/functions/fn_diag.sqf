@@ -6,15 +6,16 @@ Author:
 
 Description:
 
-	Instrumentation overlay root.  Reads the six diagnostic keys once and
-	starts the periodic instruments that are enabled.  Default-off: with every
-	key absent this function defines six FALSE gates and starts nothing.
+	Instrumentation overlay root.  Defines the six local diagnostic gates at
+	preInit, then reads their server-only configuration after parameters.sqf
+	has loaded.  Default-off: with every key absent all gates remain FALSE and
+	no periodic instrument starts.
 
 	Runs twice on the dedicated server.  The first call is preInit on every
-	machine and only publishes the gates (FALSE, because the external
-	configuration has not been read yet).  The second call is made by
-	fn_init.sqf after '@Apex_cfg\parameters.sqf' has been compiled, and is the
-	call that sees the real key values and launches the instruments.
+	machine and defines FALSE gates.  fn_init.sqf then calls this with
+	'SERVER_CONFIG_READY' after '@Apex_cfg\parameters.sqf' has been compiled.
+	That explicit call normalizes the real values, stores a server-local,
+	versioned HC-safe snapshot, and launches the server instruments.
 
 	Keys (exact Boolean, read once per call):
 
@@ -30,13 +31,16 @@ Description:
 _____________________________________________________________________/*/
 
 if (isRemoteExecuted) exitWith {};
-private _fn_exactBoolean = {
-	private _value = missionNamespace getVariable [(_this # 0),FALSE];
-	((_value isEqualType FALSE) && {_value})
-};
-{
-	missionNamespace setVariable [(_x # 1),([(_x # 0)] call _fn_exactBoolean),FALSE];
-} forEach [
+params [['_mode','preInit',['']]];
+private _serverConfigReady = _mode isEqualTo 'SERVER_CONFIG_READY';
+if (_serverConfigReady && {!isDedicated}) exitWith {};
+private _serverConfigured = localNamespace getVariable ['QS_diag_serverConfigured',FALSE];
+if (
+	(!_serverConfigReady) &&
+	{isDedicated} &&
+	{_serverConfigured}
+) exitWith {};
+private _gateMappings = [
 	['QS_missionConfig_diagHeartbeat','QS_diag_heartbeat'],
 	['QS_missionConfig_diagLoopTiming','QS_diag_loopTiming'],
 	['QS_missionConfig_diagRpcLog','QS_diag_rpcLog'],
@@ -44,30 +48,39 @@ private _fn_exactBoolean = {
 	['QS_missionConfig_diagSafePos','QS_diag_safePos'],
 	['QS_missionConfig_diagScriptHistogram','QS_diag_scriptHistogram']
 ];
-if (isNil 'QS_diag_loopState') then {
-	missionNamespace setVariable ['QS_diag_loopState',createHashMap,FALSE];
+private _fn_exactBoolean = {
+	private _value = missionNamespace getVariable [(_this # 0),FALSE];
+	((_value isEqualType FALSE) && {_value})
 };
-if (isNil 'QS_diag_rpcState') then {
-	missionNamespace setVariable ['QS_diag_rpcState',[diag_tickTime,0],FALSE];
-};
-if (!isServer) exitWith {};
-if (missionNamespace getVariable ['QS_diag_started',FALSE]) exitWith {};
-private _enabled = [
-	'QS_diag_heartbeat','QS_diag_loopTiming','QS_diag_rpcLog',
-	'QS_diag_stateSnapshots','QS_diag_safePos','QS_diag_scriptHistogram'
-] select {(missionNamespace getVariable [_x,FALSE])};
-if (_enabled isEqualTo []) exitWith {};
-missionNamespace setVariable ['QS_diag_started',TRUE,FALSE];
-diag_log format ['[DIAG INIT] enabled=%1',_enabled];
 {
-	if (missionNamespace getVariable [(_x # 0),FALSE]) then {
-		private _fn = missionNamespace getVariable [(_x # 1),{}];
-		if (_fn isEqualType {}) then {
-			0 spawn _fn;
-		};
+	localNamespace setVariable [
+		(_x # 1),
+		([FALSE,([(_x # 0)] call _fn_exactBoolean)] select _serverConfigReady)
+	];
+} forEach _gateMappings;
+if ((!_serverConfigReady) || {!_serverConfigured}) then {
+	localNamespace setVariable ['QS_diag_loopState',createHashMap];
+	localNamespace setVariable ['QS_diag_rpcState',[diag_tickTime,0]];
+	localNamespace setVariable ['QS_diag_hcConfigured',FALSE];
+	localNamespace setVariable ['QS_diag_started',FALSE];
+};
+if (!_serverConfigReady) exitWith {
+	if (isServer) then {
+		serverNamespace setVariable ['QS_diag_hcConfig',[]];
 	};
-} forEach [
-	['QS_diag_heartbeat','QS_fnc_diagHeartbeat'],
-	['QS_diag_scriptHistogram','QS_fnc_diagScripts'],
-	['QS_diag_stateSnapshots','QS_fnc_diagState']
+};
+private _hcGates = [
+	localNamespace getVariable ['QS_diag_heartbeat',FALSE],
+	localNamespace getVariable ['QS_diag_loopTiming',FALSE],
+	localNamespace getVariable ['QS_diag_rpcLog',FALSE],
+	FALSE,
+	localNamespace getVariable ['QS_diag_safePos',FALSE],
+	localNamespace getVariable ['QS_diag_scriptHistogram',FALSE]
 ];
+private _hcConfig = [];
+if (TRUE in _hcGates) then {
+	_hcConfig = [1,_hcGates];
+};
+serverNamespace setVariable ['QS_diag_hcConfig',_hcConfig];
+localNamespace setVariable ['QS_diag_serverConfigured',TRUE];
+call (missionNamespace getVariable ['QS_fnc_diagStart',{}]);

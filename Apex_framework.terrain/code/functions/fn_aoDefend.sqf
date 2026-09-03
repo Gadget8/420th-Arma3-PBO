@@ -425,7 +425,7 @@ _fn_getAIMotorPool = missionNamespace getVariable 'QS_fnc_getAIMotorPool';
 
 diag_log 'Defend AO 1';
 for '_x' from 0 to 1 step 0 do {
-	if (QS_diag_loopTiming) then {['aoDefend.main'] call QS_fnc_diagLoop;};
+	if (localNamespace getVariable ['QS_diag_loopTiming',FALSE]) then {['aoDefend.main'] call QS_fnc_diagLoop;};
 	_timeNow = time;
 	_tickTimeNow = diag_tickTime;
 	_serverTime = serverTime;
@@ -1481,7 +1481,7 @@ for '_x' from 0 to 1 step 0 do {
 	if (missionNamespace getVariable 'QS_defend_terminate') exitWith {
 		['hint','Defense cancelled!'] remoteExec ['QS_fnc_remoteExecCmd',-2,FALSE];
 	};
-	if (QS_diag_loopTiming) then {['aoDefend.main',(count _allArray)] call QS_fnc_diagLoop;};
+	if (localNamespace getVariable ['QS_diag_loopTiming',FALSE]) then {['aoDefend.main',(count _allArray)] call QS_fnc_diagLoop;};
 	sleep 1.5;
 };
 missionNamespace setVariable ['QS_defend_blockTimeout',FALSE,FALSE];

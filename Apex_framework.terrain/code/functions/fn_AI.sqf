@@ -694,11 +694,13 @@ _fn_ambientHostility = missionNamespace getVariable 'QS_fnc_ambientHostility';
 _fn_aiOwners = missionNamespace getVariable 'QS_fnc_AIOwners';
 _fn_waterInRadius = missionNamespace getVariable 'QS_fnc_waterInRadius';
 _fn_aoUrbanSpawn = missionNamespace getVariable 'QS_fnc_aoUrbanSpawn';
+private _QS_diagLoopPass = FALSE;
 
 //comment 'Loop';
 for '_x' from 0 to 1 step 0 do {
 	uiSleep (random [2.5,3,3.5]);
-	if (QS_diag_loopTiming) then {['ai.main'] call QS_fnc_diagLoop;};
+	_QS_diagLoopPass = localNamespace getVariable ['QS_diag_loopTiming',FALSE];
+	if (_QS_diagLoopPass) then {['ai.main'] call QS_fnc_diagLoop;};
 	_QS_uiTime = diag_tickTime;
 	_QS_time = time;
 	_QS_serverTime = serverTime;
@@ -2470,5 +2472,5 @@ for '_x' from 0 to 1 step 0 do {
 			_QS_module_scripts_checkDelay = _QS_uiTime + _QS_module_scripts_delay;
 		};
 	};
-	if (QS_diag_loopTiming) then {['ai.main',(count allUnits)] call QS_fnc_diagLoop;};
+	if (_QS_diagLoopPass) then {['ai.main',(count allUnits)] call QS_fnc_diagLoop;};
 };

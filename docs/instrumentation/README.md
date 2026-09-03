@@ -33,7 +33,8 @@ tools/instrumentation/
 Everything is off after `apply.ps1`. To switch an instrument on, add rows to the key table in
 `@Apex_cfg\parameters.sqf` — the `} forEach [` at `:305` of the upstream copy in
 `legacy/upstream-inputs/@Apex_cfg/parameters.sqf`, which is the file's own idiom. The third element
-is the public flag; every gate is read on the server only, so it stays `FALSE`:
+must stay `FALSE`: the source configuration remains private to the dedicated server. HCs receive
+only an authenticated, fixed-shape snapshot of the six normalized Boolean gates:
 
 ```sqf
 {
@@ -55,6 +56,17 @@ A key opens its gate only when its value is **exactly** the Boolean `TRUE`. `1`,
 `@Apex_cfg` and rename nothing, so the `docs/invariants.md` rule that the 121 `QS_missionConfig_*`
 names may not be renamed is untouched.
 
+When any HC-supported gate is on and an HC reaches mission-ready state, its existing case-98
+registration request identifies a live `HeadlessClient_F` target. Arma reports
+`isRemoteExecuted = FALSE` and `remoteExecutedOwner = 0` for HC-originated calls, so that request
+cannot be sender-bound; it is a readiness signal, not an authorization boundary. A human remote
+caller still has a nonzero owner that cannot match a live HC owner. The non-secret reply goes only
+to the validated HC owner and uses protocol `[1,[heartbeat,loop,rpc,FALSE,safePos,scripts]]`. The
+receiver accepts a non-JIP call only from server owner 2, only on a no-interface non-server process,
+and validates all six values before changing any gate. State snapshots remain server-only. This
+handshake runs again for every late join or reconnect; it does not use public variables or the JIP
+queue.
+
 The deployment's own `@Apex_cfg` is still owner work (`docs/phase-1.md`); the copy under
 `legacy/upstream-inputs/` is the upstream reference for the file's shape, not the deployed values.
 
@@ -71,23 +83,22 @@ The deployment's own `@Apex_cfg` is still owner work (`docs/phase-1.md`); the co
 | `0005-safe-position.patch` | instrument 4, safe-position deadline failures | `fn_diagSafePos.sqf` | `description.ext` (+1), `fn_findRandomPos.sqf` (+2) |
 | `0006-script-histogram.patch` | instrument 5, 60 s active-script histogram | `fn_diagScripts.sqf` | `description.ext` (+1) |
 | `0007-state-snapshots.patch` | instrument 6, 30 s positional-record snapshots | `fn_diagState.sqf` | `description.ext` (+1) |
+| `hc-telemetry-follow-up` | validated server-to-HC gate handoff and HC-safe collector startup | `fn_diagConfigureHC.sqf`, `fn_diagStart.sqf` | `description.ext`, `security.hpp`, `fn_diag.sqf`, `fn_init.sqf`, `fn_remoteExec.sqf`, `fn_AI.sqf`, heartbeat/scripts collectors and local gate reads |
 
-Total: 7 new files, 8 touched files, **23 inserted lines** across the touched files and **no deleted
-or modified line anywhere** -- every edit is a pure insertion. `verify.py` asserts the file set;
-the per-file insertion counts are `description.ext` +7, `fn_core.sqf` +6, `fn_AI.sqf` +2,
-`fn_aoDefend.sqf` +2, `fn_remoteExecCmd.sqf` +2, `fn_findRandomPos.sqf` +2, `fn_init.sqf` +1,
-`fn_remoteExec.sqf` +1.
+The original seven-patch overlay is additive. The HC telemetry follow-up deliberately refactors the
+launcher and heartbeat guard, so the integrated mission is no longer insertion-only.
 
 Two design rules the work order sets, and how they are met:
 
 - **No per-frame handler on the server.** Every periodic instrument is a scheduled loop with a
   `uiSleep` tail. `addMissionEventHandler`, `onEachFrame` and `displayAddEventHandler` do not appear
   in the overlay.
-- **No behaviour change when off.** Every inserted line is `if (QS_diag_<gate>) then {...};`, and the
-  gate globals are published at preInit on **every** machine (`fn_diag.sqf` is `preInit = 1`), so the
-  guard is a Boolean read and never an undefined-variable error — including on a headless client,
-  where `fn_AI.sqf`'s instrumented loop also runs and where the external configuration is not
-  present. Section 4 measures what an off guard costs.
+- **No collector, message or log output when off.** The process-local gates are defined as `FALSE`
+  at preInit on **every** machine (`fn_diag.sqf` is `preInit = 1`), so each hot-path guard is a
+  Boolean read and never an undefined-variable error. They live in `localNamespace`, which prevents
+  a networked `missionNamespace` variable from changing the diagnostic state. An all-off HC
+  registration receives no diagnostic response, starts no diagnostic script and writes no
+  `[DIAG ...]` line. Section 4 records the original guard benchmark and its limitation.
 
 ### 2.1 Where the loop-timing sites are
 
@@ -125,6 +136,11 @@ batch path exits at `:125` before the verdict site.
 stages the eight touched and seven added files out of the instrumented tree (verified by SHA-256),
 then asserts on the RPT. It installs the fixture under `MPMissions` and removes it again in a
 `finally` block, and it stops the server process before returning.
+
+This committed fixture and the dated results below cover the original seven-patch overlay. They do
+not by themselves validate `hc-telemetry-follow-up`; release validation for that follow-up must also
+compile every integrated function and exercise a real late-joining HC, an HC reconnect, multiple
+concurrent HCs, and an all-off run that produces no diagnostic response or log line.
 
 | Mode | Keys | Must produce |
 | --- | --- | --- |
@@ -176,6 +192,10 @@ server profile after extracting them, because both are verbatim copies of baseli
 
 ## 4. Overhead
 
+All figures in this section were measured before `hc-telemetry-follow-up` changed the gate storage
+and heartbeat fields. Treat them as a historical baseline; the integrated overlay needs a fresh
+populated server/HC benchmark before any figure is used as a current cost claim.
+
 Measured on the fixture, on the dedicated server, in **unscheduled** context (`isNil {...}`) so the
 engine's 3 ms time slice (engine fact F5) cannot land inside the measured window and charge
 suspension time to the instrument. Each figure is 90,000 calls (off paths) or 3,000 calls (logging
@@ -189,15 +209,16 @@ paths.
 | loop-timing site pair, **gate off** (the two inserted lines) | 0.656 µs | 0.733 µs | **0.39 – 0.42 µs per pass** |
 | RPC site, **gate off** (one inserted line) | 0.489 µs | 0.500 µs | **0.19 – 0.22 µs per dispatched call** |
 | loop-timing site pair, **gate on** (one logged line) | 43.3 µs | 40.0 µs | **40 – 43 µs per pass** |
-| heartbeat line (`format` + `diag_log`) | 34.0 µs | 37.3 µs | **34 – 37 µs per line** |
+| original server-only heartbeat line (`format` + `diag_log`) | 34.0 µs | 37.3 µs | **34 – 37 µs per line** |
 | bare `diag_log` of a constant string | 17.3 µs | 22.0 µs | — |
 
 Run A is `artifacts/instrumented/fixture-runs/20260902-212103`, run B is `.../20260902-212341`.
 
-The bare-`diag_log` row is the floor for every instrument: **an RPT line costs 17–22 µs and that
-dominates everything else the overlay does.** The instruments' own work — a hashmap lookup, a
-subtraction, a `format` — is worth another 15–20 µs, and the guard when the gate is off is under
-half a microsecond.
+The bare-`diag_log` row is the floor for every instrument. The original heartbeat number predates
+the HC follow-up's population/locality fields and must not be used as its current cost: the expanded
+heartbeat also walks `allPlayers`, `allUnits` and `allGroups` once per second on each instrumented
+process. The gate-off figures also predate the move from direct mission-global reads to
+`localNamespace getVariable`; retain them as historical measurements, not current cost claims.
 
 ### 4.1 Steady-state cost at production cadence
 
@@ -208,19 +229,17 @@ the corpus exists to measure), so these are upper bounds.
 
 | Instrument | Lines/s | CPU per second | Share of wall clock |
 | --- | ---: | ---: | ---: |
-| heartbeat | 1.0 | ~36 µs | 0.0036 % |
+| heartbeat | 1.0 per process | not yet remeasured; O(players + units + groups) | — |
 | loop timing, five sites | ~1.55 | ~65 µs | 0.0065 % |
-| **heartbeat + loop timing together** | **~2.55** | **~100 µs** | **0.010 %** |
 | state snapshots | 0.4 | ~14 µs + `str` cost, see below | — |
 | script histogram | 0.017 | ~1 µs + a walk of `diag_activeSQFScripts` | — |
 | safe-position failures | event-driven, expected ≪ 1/s | ~35 µs each | — |
 | RPC log, saturated at its cap | 200 | ~6 ms | **0.6 %** |
 
-At 45 fps a server frame is 22.2 ms, so heartbeat plus loop timing together cost about **2.2 µs of a
-frame**, or 0.01 % of one frame's budget. Over a four-hour recording they add about 37,000 RPT lines,
-roughly 3.5 MB. With the overlay applied and every gate off, the residual cost is under 1 µs per
-second for the five loop sites plus about 0.2 µs per dispatched remote call, and no instrument
-thread exists at all.
+The expanded heartbeat needs a populated server/HC benchmark before assigning it a production CPU
+percentage. At one line per second it adds about 14,400 lines per instrumented process over a
+four-hour recording. With every gate off, no instrument thread exists, but the hardened gate-read
+cost must be remeasured before assigning it a current number.
 
 Two cautions:
 
@@ -228,7 +247,8 @@ Two cautions:
   writes on the order of 250 MB of RPT over a four-hour session. Leave it off for the long recording session
   and switch it on for a bounded window when the endpoint registry (WO-0004) needs live call
   evidence.
-- **State snapshots are the one instrument whose cost scales with mission state.** `hashValue (str
+- **State snapshots and the expanded heartbeat scale with mission state.** The heartbeat performs
+  bounded linear counts over players, units and groups once per second. For state, `hashValue (str
   <record>)` is linear in the record's size, and on a populated server `QS_v_Monitor` holds 366 rows
   from `mission.sqm` and `QS_ST_X` holds 87 mixed data/`CODE` slots. The fixture's records are two
   rows, so the 14 µs/s above is a floor. It is why the instrument is 30 s, spreads its twelve
@@ -276,17 +296,18 @@ rather than half-patched. It does not shell out to git or `patch.exe`.
 3. **`[DIAG LOOP] aoDefend.main` skips a pass on cancellation**, because `fn_aoDefend.sqf:1480`'s
    `exitWith` fires above the bottom instrument. The gap is visible in the `pass=` counter and is
    expected, not a defect.
-4. **`ai.main` also runs on a headless client**, writing to that machine's RPT. Do not merge a
-   server RPT and an HC RPT into one corpus file; `docs/corpus-format.md` section 3 says why.
+4. **HC telemetry is process-local.** Heartbeats, `ai.main`, script histograms, RPC decisions and
+   safe-position failures can write to each HC's own RPT; state snapshots remain server-only.
+   Collect every process RPT and keep them as separate files in one session bundle.
 5. **The RPC limiter's dropped lines are not counted.** Counting them would need a write on the
    dropped path, which is the path that has to stay cheap. A second saturated at exactly 200 lines
    is a floor, not a total.
 6. **`hashValue` returns an opaque token, not a number**, on the engine in use. Compare it for
    equality; never order it.
 7. **The log covers server-local dispatcher calls as well as remote ones**, because the sites sit
-   outside the validator's `if (_clientToServer)` block. Local calls carry `owner=0` and are
-   informative for WO-0004's endpoint registry, but they share the 200 lines/s budget with the
-   remote traffic and can crowd it out. Filter by `owner=` before computing a remote call rate.
+   outside the validator's `if (_clientToServer)` block. Local calls and HC-originated remote calls
+   both carry `owner=0` because of an engine limitation; they share the 200 lines/s budget with
+   ordinary remote traffic and cannot be separated by `owner=` alone.
 8. **A malformed `QS_fnc_remoteExecCmd` call is not logged.** `fn_remoteExecCmd.sqf:130` exits for a
    call with fewer than two elements or a non-string verb, above the verdict site.
 9. **The overhead figures are costs in isolation.** They are not a measured delta against the

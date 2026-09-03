@@ -5,8 +5,9 @@ instrumentation overlay (`tools/instrumentation/`) applied to the legacy mission
 live session, and replayed against the rewrite. This document is the contract between the producer
 (the overlay) and every consumer (the replay harness, the parity report, any ad-hoc analysis).
 
-A corpus is **one server RPT plus one manifest**. Nothing else. The overlay writes only `diag_log`
-lines; it opens no file, no socket and no database, and it adds no per-frame handler on the server.
+A corpus is **one RPT per instrumented process plus one manifest**: the dedicated-server RPT and,
+when HCs are enabled, every HC RPT from the same session. The overlay writes only `diag_log` lines;
+it opens no file, socket or database and adds no per-frame handler.
 
 ---
 
@@ -14,13 +15,15 @@ lines; it opens no file, no socket and no database, and it adds no per-frame han
 
 | Part | Produced by | Shape |
 | --- | --- | --- |
-| `session.rpt` | the dedicated server, unmodified | the whole RPT, verbatim, not filtered |
+| `session-server.rpt` | the dedicated server, unmodified | the whole server RPT, verbatim |
+| `session-hc-<n>.rpt` | each headless-client process, unmodified | one whole RPT per HC |
 | `manifest.json` | the recording operator | provenance: see section 5 |
 
-The RPT is kept whole and unfiltered on purpose. The overlay's lines are interleaved with the
+Each RPT is kept whole and unfiltered on purpose. The overlay's lines are interleaved with the
 mission's own diagnostics (`***** DEBUG ***** SAFE POS FAILURE`, the `SERVER REPORT` block at
 `fn_core.sqf:1391`, script errors), and the ordering between them is evidence. A filtered copy is a
-derived artefact, never the corpus.
+derived artefact, never the corpus. Never concatenate process RPTs: their local event order and
+`diag_tickTime` domains are independent.
 
 ---
 
@@ -53,28 +56,34 @@ Common rules:
 ### 2.1 `[DIAG INIT]`
 
 ```
-[DIAG INIT] enabled=[<gate name>,...]
+[DIAG INIT] enabled=[<gate name>,...] role=<server|hc> owner=<clientOwner>
 ```
 
-Written once, by `QS_fnc_diag`, when at least one instrument is enabled. Its absence means the
-overlay is present but wholly off, which is the default. Use it to know which instruments a corpus
-can be expected to contain: a missing line type is only meaningful if its gate is in `enabled`.
+Written once per process by `QS_fnc_diagStart` when at least one instrument is enabled. Its absence
+means the overlay is present but wholly off, which is the default. `owner` is the session-scoped
+network owner (2 on the dedicated server). Use this line to identify the RPT and to know which line
+types it can contain. HC snapshots always force `QS_diag_stateSnapshots` off.
 
-### 2.2 `[DIAG HB]` — server heartbeat, 1 s
+### 2.2 `[DIAG HB]` — process heartbeat, 1 s
 
 ```
 [DIAG HB] t=<diag_tickTime> frame=<diag_frameNo> fps=<diag_fps> fpsmin=<diag_fpsMin>
           players=<count allPlayers> units=<count allUnits> vehicles=<count vehicles>
-          scripts=<count diag_activeSQFScripts>
+          scripts=<count diag_activeSQFScripts> role=<server|hc> owner=<clientOwner>
+          serverTime=<serverTime> localUnits=<locally owned units>
+          localGroups=<locally owned groups> humans=<human players> hcs=<headless clients>
 ```
 
-One line per second from a scheduled loop whose tail is `uiSleep 1`. This is the corpus's clock and
-its liveness signal.
+One line per second from a scheduled loop whose tail is `uiSleep 1`. This is each process's clock
+and liveness signal. Arma includes connected HCs in `allPlayers`, so `players` is retained for
+compatibility while `humans` and `hcs` provide the population split needed for load analysis.
+`localUnits` and `localGroups` measure the simulation load owned by that process. `serverTime`
+provides an approximate cross-process alignment point; `t` remains process-local.
 
 Two derived quantities matter and both come from consecutive heartbeats:
 
-- **frame delta / wall delta.** `frame` is `diag_frameNo`, which advances once per rendered server
-  frame. A gap in `t` with a proportional gap in `frame` is the server running slowly; a gap in `t`
+- **frame delta / wall delta.** `frame` is `diag_frameNo`, which advances once per local simulation
+  frame. A gap in `t` with a proportional gap in `frame` is the process running slowly; a gap in `t`
   with almost no gap in `frame` is a **frame block** — the engine itself was not ticking. Engine fact
   F5 says a non-suspending loop in a *scheduled* script does not block the frame, so a frame block
   points at unscheduled context or a single expensive command, not at a spawned loop.
@@ -111,8 +120,8 @@ file path:
 - `items` is the quantity the pass's cost is proportional to, so `ms` against `items` is the
   scaling law the rewrite's budgeted scheduler has to beat.
 
-`ai.main` also runs on a headless client. The name does not carry the machine; the RPT does — an HC
-writes its own RPT. Never merge a server RPT and an HC RPT into one corpus file.
+`ai.main` also runs on a headless client when its server-derived gate is enabled. The name does not
+carry the process; `[DIAG INIT]`, `[DIAG HB]` and the RPT filename do. Keep every RPT separate.
 
 ### 2.4 `[DIAG RPC]` — dispatcher decision log
 
@@ -123,9 +132,10 @@ writes its own RPT. Never merge a server RPT and an HC RPT into one corpus file.
 
 - `case` is the numeric selector for `QS_fnc_remoteExec` and the verb string for
   `QS_fnc_remoteExecCmd`. A consumer distinguishes them by type, not by a separate field.
-- `owner` is `remoteExecutedOwner`: `0` for a locally originated call, `2` for the server as a
-  remote sender, and a per-client id above 2 otherwise. It is **not** a Steam UID and is not stable
-  across sessions.
+- `owner` is `remoteExecutedOwner`: `0` for a locally originated call **and for an HC-originated
+  remote call because of an engine limitation**, `2` for the server as a remote sender, and a
+  per-human-client id above 2 otherwise. In that HC-originated context `isRemoteExecuted` is also
+  false. It is **not** a Steam UID and is not stable across sessions.
 - The verdict token is the literal `accept` or `reject` and carries no `=`.
 - `reason` is empty on accept, and on reject is one of the existing validator's own strings:
   `payload shape`, `payload nodes`, `payload type`, `string length`, `rate limit`, `sender`,
@@ -141,10 +151,12 @@ Coverage and its holes:
 - A **batched** `QS_fnc_remoteExecCmd` call (`_type` is an Array, `fn_remoteExecCmd.sqf:125`) logs
   one line per element and none for the batch itself, because the batch exits before the verdict
   site. Count elements, not batches.
-- The sites sit **outside** the validator's `if (_clientToServer)` block, so server-local calls to
-  the dispatchers are logged too, with `owner=0`. That is deliberate — it is the evidence the
-  endpoint registry (WO-0004) needs — but local traffic shares the rate limit with remote traffic,
-  so filter on `owner=` before computing a remote call rate.
+- The sites sit **outside** the validator's `if (_clientToServer)` block, so server-local calls and
+  HC-originated calls are both logged with `owner=0`. They share the rate limit with ordinary remote
+  traffic and cannot be separated by `owner=` alone.
+- `accept` means the call passed the dispatcher's generic prologue validator. A case body can still
+  decline it at a later case-specific guard. In particular, case 98 validates mission-ready HC
+  ownership after the RPC line has already been written.
 - A malformed `QS_fnc_remoteExecCmd` call is **not** logged: `fn_remoteExecCmd.sqf:130` exits for a
   call with fewer than two elements or a non-string verb, above the verdict site.
 - The log is **rate limited to 200 lines per second across both dispatchers**. Dropped lines are not
@@ -249,9 +261,9 @@ that machine. Two consequences:
 - A `[DIAG LOOP] core.main` line and every line written by subsystems inside that pass appear
   **before** it, because the bottom instrument is the last statement of the pass. To attribute a
   `[DIAG SAFEPOS]` to a god-loop pass, take the next `core.main` line below it.
-- Nothing correlates events **across** machines. Server and headless-client RPTs share only
-  wall-clock time, and `diag_tickTime` is per process. Cross-machine correlation is out of scope for
-  this corpus and is a requirement on the rewrite's `K2 log`, not on the overlay.
+- Heartbeats expose `serverTime` for approximate cross-process alignment. All other lines use the
+  enclosing process's event order and `diag_tickTime`; do not compare those local tick values across
+  machines or concatenate their logs.
 
 ---
 
@@ -275,11 +287,11 @@ Written by the recording operator, not by the overlay. Minimum shape:
 
 ```json
 {
-  "format": "wo0003-1",
+  "format": "wo0003-2",
   "recordedAt": "2026-09-02T18:00:00Z",
   "durationSeconds": 14400,
   "missionSha256": "<sha256 of the applied mission tree, per tools/instrumentation/verify.py>",
-  "patchSet": ["0001-diag-runtime.patch", "...", "0007-state-snapshots.patch"],
+  "patchSet": ["0001-diag-runtime.patch", "...", "0007-state-snapshots.patch", "hc-telemetry-follow-up"],
   "gates": {
     "diagHeartbeat": true,
     "diagLoopTiming": true,
@@ -290,14 +302,19 @@ Written by the recording operator, not by the overlay. Minimum shape:
   },
   "aoType": "<QS_missionConfig_aoType in force>",
   "headlessClients": 0,
+  "logs": {
+    "server": "session-server.rpt",
+    "headlessClients": []
+  },
   "peakPlayers": 0,
   "notes": ""
 }
 ```
 
-`gates` must agree with the `[DIAG INIT] enabled=` line in the RPT; the replay harness checks that
-and refuses a corpus where they disagree, because a missing line type is otherwise indistinguishable
-from an instrument that was never switched on.
+`gates` must agree with the server `[DIAG INIT] enabled=` line. Each HC line must agree except that
+`diagStateSnapshots` is always false there. `logs.headlessClients` must name every HC RPT collected
+for the session; its length normally agrees with `headlessClients`. Record a disconnect, reconnect
+or missing RPT in `notes` rather than silently omitting it.
 
 `aoType` matters more than any other field: T3's open question 1 records that GRID, SC and CLASSIC
 put entirely different stall mechanisms in play, so two corpora recorded under different `aoType`

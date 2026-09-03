@@ -9,8 +9,9 @@ Description:
 	Instrument 6, state snapshots.  Every 30 seconds, one line per positional
 	record named in docs/plan-of-record.md section 1.2 (the nine records of
 	the review's theme T2 section 2.5) plus the three further records the work
-	order names.  Started by fn_diag.sqf only when
-	QS_missionConfig_diagStateSnapshots is exactly TRUE.
+	order names.  Runs only on the dedicated server when its local,
+	configuration-derived state-snapshot gate is TRUE; HCs never receive this
+	gate as enabled.
 
 	[DIAG STATE] name=<n> count=<elements> arity=<distinct row lengths> hash=<hashValue of str>
 
@@ -43,7 +44,7 @@ private _records = [
 ];
 for '_i' from 0 to 1 step 0 do {
 	uiSleep 30;
-	if (!(missionNamespace getVariable ['QS_diag_stateSnapshots',FALSE])) exitWith {};
+	if (!(localNamespace getVariable ['QS_diag_stateSnapshots',FALSE])) exitWith {};
 	{
 		_x params ['_name','_store'];
 		private _value = switch (_store) do {
